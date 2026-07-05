@@ -18,24 +18,25 @@ function formatTime(ts: number): string {
 </script>
 
 <template>
-  <div v-if="items.length > 0" class="bg-[#1e293b] border border-[#334155] rounded-xl p-4">
+  <div v-if="items.length > 0" class="border rounded-xl p-4" :style="{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }">
     <div
       v-for="item in items"
       :key="item.toolId + item.timestamp"
-      class="flex items-center gap-3 py-2.5 border-b border-[#334155] last:border-b-0 cursor-pointer transition-colors hover:text-[#6366f1]"
+      class="flex items-center gap-3 py-2.5 border-b last:border-b-0 cursor-pointer transition-colors hover:text-[#6366f1]"
+      :style="{ borderColor: 'var(--border)' }"
       @click="emit('itemClick', item.toolId)"
     >
       <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg bg-[rgba(99,102,241,0.1)] text-[#6366f1] shrink-0">
         <UIcon :name="item.icon || 'i-heroicons-cube'" class="w-5 h-5" />
       </div>
       <div class="flex-1 min-w-0">
-        <h4 class="text-sm font-medium truncate">{{ item.toolName }}</h4>
-        <span class="text-xs text-[#94a3b8] truncate block">{{ item.description }}</span>
+        <h4 class="text-sm font-medium truncate" :style="{ color: 'var(--text-primary)' }">{{ item.toolName }}</h4>
+        <span class="text-xs truncate block" :style="{ color: 'var(--text-secondary)' }">{{ item.description }}</span>
       </div>
-      <span class="text-xs text-[#94a3b8] shrink-0">{{ formatTime(item.timestamp) }}</span>
+      <span class="text-xs shrink-0" :style="{ color: 'var(--text-secondary)' }">{{ formatTime(item.timestamp) }}</span>
     </div>
   </div>
-  <div v-else class="bg-[#1e293b] border border-[#334155] rounded-xl p-8 text-center text-sm text-[#94a3b8]">
+  <div v-else class="border rounded-xl p-8 text-center text-sm" :style="{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }">
     暂无使用记录
   </div>
 </template>

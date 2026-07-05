@@ -34,14 +34,19 @@ function handleSelect(category: string): void {
 
 <template>
   <aside
-    class="flex shrink-0 flex-col border-r border-[#334155] bg-[#1e293b] transition-[width] duration-200"
+    class="flex shrink-0 flex-col border-r transition-all duration-200"
     :class="collapsed ? 'w-16' : 'w-55'"
+    :style="{
+      borderColor: 'var(--border)',
+      backgroundColor: 'var(--bg-sidebar)'
+    }"
   >
     <!-- 分类区域 -->
     <div class="flex flex-col gap-1 px-3 pt-4">
       <span
         v-if="!collapsed"
-        class="mb-1 px-2 text-xs font-medium uppercase tracking-wider text-[#64748b]"
+        class="mb-1 px-2 text-xs font-medium uppercase tracking-wider"
+        :style="{ color: 'var(--text-muted)' }"
       >
         分类
       </span>
@@ -52,8 +57,9 @@ function handleSelect(category: string): void {
         :class="
           activeCategory === item.id
             ? 'bg-[rgba(99,102,241,0.15)] text-[#6366f1]'
-            : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f1f5f9]'
+            : 'hover:bg-[var(--border)]'
         "
+        :style="activeCategory !== item.id ? { color: 'var(--text-secondary)' } : {}"
         :title="collapsed ? item.label : undefined"
         @click="handleSelect(item.id)"
       >
@@ -68,13 +74,14 @@ function handleSelect(category: string): void {
     </div>
 
     <!-- 分割线 -->
-    <div v-if="!collapsed" class="mx-3 my-3 border-t border-[#334155]" />
+    <div v-if="!collapsed" class="mx-3 my-3 border-t" :style="{ borderColor: 'var(--border)' }" />
 
     <!-- 收藏区域 -->
     <div class="flex flex-col gap-1 px-3">
       <span
         v-if="!collapsed"
-        class="mb-1 px-2 text-xs font-medium uppercase tracking-wider text-[#64748b]"
+        class="mb-1 px-2 text-xs font-medium uppercase tracking-wider"
+        :style="{ color: 'var(--text-muted)' }"
       >
         收藏
       </span>
@@ -85,8 +92,9 @@ function handleSelect(category: string): void {
         :class="
           activeCategory === item.id
             ? 'bg-[rgba(99,102,241,0.15)] text-[#6366f1]'
-            : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f1f5f9]'
+            : 'hover:bg-[var(--border)]'
         "
+        :style="activeCategory !== item.id ? { color: 'var(--text-secondary)' } : {}"
         :title="collapsed ? item.label : undefined"
         @click="handleSelect(item.id)"
       >

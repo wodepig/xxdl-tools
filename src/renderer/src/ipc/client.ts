@@ -21,13 +21,17 @@ export const ipcClient = {
 
   // 工具数据存储
   getToolData: <T = Record<string, unknown>>(toolId: string): Promise<T> =>
-    ipc.invoke(`data:get:${toolId}`),
+    ipc.invoke('data:get', toolId),
   setToolData: <T = Record<string, unknown>>(
     toolId: string,
     data: T
-  ): Promise<void> => ipc.invoke(`data:set:${toolId}`, data),
+  ): Promise<void> => ipc.invoke('data:set', toolId, data),
   deleteToolData: (toolId: string): Promise<void> =>
-    ipc.invoke(`data:delete:${toolId}`),
+    ipc.invoke('data:delete', toolId),
+
+  // 清空所有工具数据
+  clearAllToolData: (toolIds: string[]): Promise<void[]> =>
+    Promise.all(toolIds.map((id) => ipc.invoke('data:delete', id))),
 
   // 通用 IPC 调用（供高级使用）
   invoke: <T = unknown>(channel: string, ...args: unknown[]): Promise<T> =>

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToolsStore } from '../stores/toolsStore'
 import { ipcClient } from '../ipc/client'
 
 const settingsStore = useSettingsStore()
 const { tools } = useToolsStore()
+const clearingData = ref(false)
+const clearDone = ref(false)
 
 const themeItems = [
   { label: '暗色', value: 'dark' },
@@ -38,7 +40,6 @@ function togglePin(toolId: string): void {
 
 function resetSettings(): void {
   settingsStore.reset()
-  // 解构以避免 ref 写入问题，将 AppSettings 中的各个字段传入
   ipcClient.setSettings({
     theme: 'dark',
     pinnedTools: [],
@@ -46,23 +47,41 @@ function resetSettings(): void {
     sidebarCollapsed: false
   })
 }
+
+async function handleClearAllToolData(): Promise<void> {
+  clearingData.value = true
+  clearDone.value = false
+  try {
+    const toolIds = tools.map(t => t.id)
+    await ipcClient.clearAllToolData(toolIds)
+    clearDone.value = true
+    setTimeout(() => { clearDone.value = false }, 3000)
+  } catch (e) {
+    console.error('Failed to clear tool data:', e)
+  } finally {
+    clearingData.value = false
+  }
+}
 </script>
 
 <template>
-  <div class="p-7 overflow-y-auto h-full max-w-3xl">
-    <h1 class="text-2xl font-bold mb-8 bg-gradient-to-r from-[#f1f5f9] to-[#94a3b8] bg-clip-text text-transparent">设置</h1>
+  <div class="p-7 overflow-y-auto h-full max-w-3xl" :style="{ color: 'var(--text-primary)' }">
+    <h1 class="text-2xl font-bold mb-8" :style="{ color: 'var(--text-primary)' }">设置</h1>
 
     <!-- 外观设置 -->
     <section class="mb-8">
-      <h2 class="text-base font-semibold text-[#f1f5f9] mb-4 flex items-center gap-2">
+      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" :style="{ color: 'var(--text-primary)' }">
         <UIcon name="i-heroicons-sun" class="w-5 h-5" />
         外观设置
       </h2>
-      <div class="bg-[#1e293b] border border-[#334155] rounded-xl p-5">
+      <div class="rounded-xl p-5 border" :style="{
+        backgroundColor: 'var(--bg-card)',
+        borderColor: 'var(--border)'
+      }">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm font-medium text-[#f1f5f9]">主题</p>
-            <p class="text-xs text-[#94a3b8] mt-1">选择应用的显示主题</p>
+            <p class="text-sm font-medium" :style="{ color: 'var(--text-primary)' }">主题</p>
+            <p class="text-xs mt-1" :style="{ color: 'var(--text-secondary)' }">选择应用的显示主题</p>
           </div>
           <USelectMenu
             :model-value="settingsStore.theme.value"
@@ -77,12 +96,15 @@ function resetSettings(): void {
 
     <!-- 工具管理 -->
     <section class="mb-8">
-      <h2 class="text-base font-semibold text-[#f1f5f9] mb-4 flex items-center gap-2">
+      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" :style="{ color: 'var(--text-primary)' }">
         <UIcon name="i-heroicons-cube" class="w-5 h-5" />
         快捷入口管理
       </h2>
-      <div class="bg-[#1e293b] border border-[#334155] rounded-xl p-5">
-        <p class="text-xs text-[#94a3b8] mb-4">选择要在快捷入口显示的工具</p>
+      <div class="rounded-xl p-5 border" :style="{
+        backgroundColor: 'var(--bg-card)',
+        borderColor: 'var(--border)'
+      }">
+        <p class="text-xs mb-4" :style="{ color: 'var(--text-secondary)' }">选择要在快捷入口显示的工具</p>
         <div class="flex flex-wrap gap-2">
           <UBadge
             v-for="tool in tools"
@@ -102,13 +124,49 @@ function resetSettings(): void {
       </div>
     </section>
 
+    <!-- 数据管理 -->
+    <section class="mb-8">
+      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" :style="{ color: 'var(--text-primary)' }">
+        <UIcon name="i-heroicons-trash" class="w-5 h-5" />
+        数据管理
+      </h2>
+      <div class="rounded-xl p-5 border" :style="{
+        backgroundColor: 'var(--bg-card)',
+        borderColor: 'var(--border)'
+      }">
+        <p class="text-sm font-medium mb-1" :style="{ color: 'var(--text-primary)' }">清空工具数据</p>
+        <p class="text-xs mb-4" :style="{ color: 'var(--text-secondary)' }">
+          删除所有工具存储的历史记录和缓存数据（不包括设置）
+        </p>
+        <div class="flex items-center gap-3">
+          <UButton
+            color="error"
+            variant="outline"
+            :loading="clearingData"
+            :disabled="clearingData"
+            @click="handleClearAllToolData"
+          >
+            清空所有工具数据
+          </UButton>
+          <span
+            v-if="clearDone"
+            class="text-sm text-green-500"
+          >✓ 已清空</span>
+        </div>
+      </div>
+    </section>
+
     <!-- 关于 -->
     <section class="mb-8">
-      <h2 class="text-base font-semibold text-[#f1f5f9] mb-4 flex items-center gap-2">
+      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" :style="{ color: 'var(--text-primary)' }">
         <UIcon name="i-heroicons-information-circle" class="w-5 h-5" />
         关于
       </h2>
-      <div class="bg-[#1e293b] border border-[#334155] rounded-xl p-5 text-sm text-[#94a3b8]">
+      <div class="rounded-xl p-5 border text-sm" :style="{
+        backgroundColor: 'var(--bg-card)',
+        borderColor: 'var(--border)',
+        color: 'var(--text-secondary)'
+      }">
         <p>DevToolbox v1.0.0</p>
         <p class="mt-2">一个全能的开发者工具箱</p>
       </div>

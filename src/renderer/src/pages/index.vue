@@ -36,10 +36,10 @@ const pageTitle = computed(() => {
   <div class="p-7 overflow-y-auto h-full">
     <!-- Header -->
     <div class="mb-7">
-      <h1 class="text-2xl font-bold mb-2 bg-gradient-to-r from-[#f1f5f9] to-[#94a3b8] bg-clip-text text-transparent">
+      <h1 class="text-2xl font-bold mb-2" :style="{ color: 'var(--text-primary)' }">
         {{ pageTitle }}
       </h1>
-      <p class="text-sm text-[#94a3b8]">选择一个工具开始工作，或使用搜索快速定位</p>
+      <p class="text-sm" :style="{ color: 'var(--text-secondary)' }">选择一个工具开始工作，或使用搜索快速定位</p>
     </div>
 
     <!-- Search -->
@@ -61,7 +61,7 @@ const pageTitle = computed(() => {
       <div>
         <div class="flex items-center gap-2 mb-4">
           <UIcon name="i-heroicons-clock" class="w-5 h-5 text-[#6366f1]" />
-          <h2 class="text-base font-semibold text-[#f1f5f9]">最近使用</h2>
+          <h2 class="text-base font-semibold" :style="{ color: 'var(--text-primary)' }">最近使用</h2>
         </div>
         <RecentList :items="recentTools" @item-click="handleToolClick" />
       </div>

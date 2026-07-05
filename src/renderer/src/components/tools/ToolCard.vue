@@ -7,8 +7,10 @@ const emit = defineEmits<{ click: [toolId: string] }>()
 
 <template>
   <div
-    class="bg-[#1e293b] border border-[#334155] rounded-xl p-5 cursor-pointer transition-all duration-250 hover:-translate-y-1 hover:shadow-lg hover:border-[var(--card-accent)] relative overflow-hidden group"
+    class="border rounded-xl p-5 cursor-pointer transition-all duration-250 hover:-translate-y-1 hover:shadow-lg hover:border-[var(--card-accent)] relative overflow-hidden group"
     :style="{
+      backgroundColor: 'var(--bg-card)',
+      borderColor: 'var(--border)',
       '--card-accent': tool.accentColor,
       '--card-bg': `${tool.accentColor}26`
     }"
@@ -27,12 +29,12 @@ const emit = defineEmits<{ click: [toolId: string] }>()
       <UIcon :name="tool.icon" class="w-5 h-5" />
     </div>
     <!-- 名称 -->
-    <h3 class="text-[15px] font-semibold mb-1.5 text-[#f1f5f9]">{{ tool.name }}</h3>
+    <h3 class="text-[15px] font-semibold mb-1.5" :style="{ color: 'var(--text-primary)' }">{{ tool.name }}</h3>
     <!-- 描述 -->
-    <p class="text-xs text-[#94a3b8] leading-relaxed mb-3">{{ tool.description }}</p>
+    <p class="text-xs leading-relaxed mb-3" :style="{ color: 'var(--text-secondary)' }">{{ tool.description }}</p>
     <!-- Meta -->
-    <div class="flex items-center justify-between text-[11px] text-[#94a3b8]">
-      <span class="px-2 py-0.5 rounded bg-[#0f172a] text-[11px]">{{ tool.tags?.[0] || '通用' }}</span>
+    <div class="flex items-center justify-between text-[11px]" :style="{ color: 'var(--text-secondary)' }">
+      <span class="px-2 py-0.5 rounded text-[11px]" :style="{ backgroundColor: 'var(--bg-base)' }">{{ tool.tags?.[0] || '通用' }}</span>
       <span v-if="tool.rating" class="flex items-center gap-1">
         <UIcon name="i-heroicons-star-solid" class="w-3 h-3 text-[#f59e0b]" />
         {{ tool.rating }}
