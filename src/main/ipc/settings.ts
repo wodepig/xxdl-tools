@@ -1,0 +1,41 @@
+import { ipcMain, app } from 'electron'
+import { join } from 'path'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import type { AppSettings } from '../../shared/types/settings'
+
+const defaultSettings: AppSettings = {
+  theme: 'dark',
+  pinnedTools: [],
+  recentTools: [],
+  toolSettings: [],
+  sidebarCollapsed: false
+}
+
+function getSettingsPath(): string {
+  return join(app.getPath('userData'), 'settings.json')
+}
+
+function readSettings(): AppSettings {
+  const path = getSettingsPath()
+  if (!existsSync(path)) {
+    writeFileSync(path, JSON.stringify(defaultSettings, null, 2))
+    return defaultSettings
+  }
+  return JSON.parse(readFileSync(path, 'utf-8'))
+}
+
+function writeSettings(settings: AppSettings): void {
+  writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2))
+}
+
+export function registerSettingsHandlers(): void {
+  ipcMain.handle('settings:get', () => {
+    return readSettings()
+  })
+
+  ipcMain.handle('settings:set', (_event, partial: Partial<AppSettings>) => {
+    const current = readSettings()
+    const updated = { ...current, ...partial }
+    writeSettings(updated)
+  })
+}

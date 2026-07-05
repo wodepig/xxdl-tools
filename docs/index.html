@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工具箱首页</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #26334d;
+            --border: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --accent-2: #10b981;
+            --accent-3: #f59e0b;
+            --accent-4: #ec4899;
+            --accent-5: #06b6d4;
+            --accent-6: #8b5cf6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 顶部导航栏 */
+        .top-bar {
+            height: 56px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            -webkit-app-region: drag;
+        }
+
+        .top-bar .left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-bar .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-6));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .top-bar .title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .top-bar .right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+
+        .top-bar .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .top-bar .btn-icon:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .top-bar .btn-close:hover {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        /* 主布局 */
+        .main-layout {
+            display: flex;
+            height: 100vh;
+            padding-top: 56px;
+        }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            padding: 0 16px;
+            margin-bottom: 8px;
+        }
+
+        .sidebar-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .sidebar-item:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .sidebar-item.active {
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .sidebar-item i {
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* 主内容区 */
+        .content {
+            flex: 1;
+            padding: 28px 32px;
+            overflow-y: auto;
+        }
+
+        .content-header {
+            margin-bottom: 28px;
+        }
+
+        .content-header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .content-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* 搜索框 */
+        .search-box {
+            position: relative;
+            margin-bottom: 28px;
+            max-width: 480px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 18px;
+        }
+
+        /* 快捷入口 */
+        .quick-access {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+
+        .quick-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-item:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        .quick-item i {
+            font-size: 16px;
+        }
+
+        /* 工具卡片网格 */
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .tool-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--card-accent, var(--accent));
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--card-accent, var(--accent));
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .tool-card:hover::before {
+            opacity: 1;
+        }
+
+        .tool-card .icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 14px;
+            background: var(--card-bg, rgba(99, 102, 241, 0.15));
+            color: var(--card-accent, var(--accent));
+        }
+
+        .tool-card h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .tool-card p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .tool-card .meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .tool-card .tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--bg);
+            font-size: 11px;
+        }
+
+        /* 最近使用 */
+        .recent-list {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 20px;
+        }
+
+        .recent-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .recent-item:last-child {
+            border-bottom: none;
+        }
+
+        .recent-item:hover {
+            color: var(--accent);
+        }
+
+        .recent-item .ri-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .recent-item .info {
+            flex: 1;
+        }
+
+        .recent-item .info h4 {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .recent-item .info span {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .recent-item .time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* 两栏布局 */
+        .two-col {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1100px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                width: 64px;
+            }
+            .sidebar-section-title,
+            .sidebar-item span {
+                display: none;
+            }
+            .sidebar-item {
+                justify-content: center;
+                padding: 10px;
+            }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="top-bar">
+        <div class="left">
+            <div class="logo">
+                <i class="ri-toolbox-line" style="color: #fff;"></i>
+            </div>
+            <span class="title">DevToolbox</span>
+        </div>
+        <div class="right">
+            <button class="btn-icon" title="设置"><i class="ri-settings-3-line"></i></button>
+            <button class="btn-icon" title="最小化"><i class="ri-subtract-line"></i></button>
+            <button class="btn-icon" title="最大化"><i class="ri-fullscreen-line"></i></button>
+            <button class="btn-icon btn-close" title="关闭"><i class="ri-close-line"></i></button>
+        </div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="main-layout">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">分类</div>
+                <div class="sidebar-item active">
+                    <i class="ri-apps-line"></i>
+                    <span>全部工具</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-code-box-line"></i>
+                    <span>开发工具</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-image-line"></i>
+                    <span>图片处理</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-file-text-line"></i>
+                    <span>文本工具</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-shield-keyhole-line"></i>
+                    <span>安全加密</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-database-2-line"></i>
+                    <span>数据转换</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">收藏</div>
+                <div class="sidebar-item">
+                    <i class="ri-star-line"></i>
+                    <span>我的收藏</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-history-line"></i>
+                    <span>使用记录</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="content">
+            <div class="content-header">
+                <h1>欢迎使用工具箱</h1>
+                <p>选择一个工具开始工作，或使用搜索快速定位</p>
+            </div>
+
+            <!-- 搜索 -->
+            <div class="search-box">
+                <i class="ri-search-line"></i>
+                <input type="text" placeholder="搜索工具... (Ctrl + K)">
+            </div>
+
+            <!-- 快捷入口 -->
+            <div class="quick-access">
+                <div class="quick-item">
+                    <i class="ri-json-line" style="color: #10b981;"></i>
+                    <span>JSON 格式化</span>
+                </div>
+                <div class="quick-item">
+                    <i class="ri-time-line" style="color: #f59e0b;"></i>
+                    <span>时间戳转换</span>
+                </div>
+                <div class="quick-item">
+                    <i class="ri-hash-line" style="color: #ec4899;"></i>
+                    <span>Base64 编解码</span>
+                </div>
+                <div class="quick-item">
+                    <i class="ri-qr-code-line" style="color: #06b6d4;"></i>
+                    <span>二维码生成</span>
+                </div>
+                <div class="quick-item">
+                    <i class="ri-color-picker-line" style="color: #8b5cf6;"></i>
+                    <span>颜色工具</span>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <div>
+                    <!-- 常用工具 -->
+                    <div class="section-title">
+                        <i class="ri-fire-line" style="color: #f59e0b;"></i>
+                        常用工具
+                        <span class="badge">8</span>
+                    </div>
+                    <div class="tool-grid">
+                        <div class="tool-card" style="--card-accent: #6366f1; --card-bg: rgba(99,102,241,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-json-line"></i>
+                            </div>
+                            <h3>JSON 格式化</h3>
+                            <p>格式化、压缩、验证 JSON 数据，支持语法高亮</p>
+                            <div class="meta">
+                                <span class="tag">开发</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.9</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #10b981; --card-bg: rgba(16,185,129,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-time-line"></i>
+                            </div>
+                            <h3>时间戳转换</h3>
+                            <p>Unix 时间戳与日期互转，支持多种格式输出</p>
+                            <div class="meta">
+                                <span class="tag">开发</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.8</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #ec4899; --card-bg: rgba(236,72,153,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-hash-line"></i>
+                            </div>
+                            <h3>Base64 编解码</h3>
+                            <p>Base64 编码/解码，支持图片转 Base64</p>
+                            <div class="meta">
+                                <span class="tag">安全</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.7</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #06b6d4; --card-bg: rgba(6,182,212,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-qr-code-line"></i>
+                            </div>
+                            <h3>二维码生成</h3>
+                            <p>生成二维码，支持自定义尺寸、颜色、Logo</p>
+                            <div class="meta">
+                                <span class="tag">图片</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.6</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #8b5cf6; --card-bg: rgba(139,92,246,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-color-picker-line"></i>
+                            </div>
+                            <h3>颜色工具</h3>
+                            <p>HEX/RGB/HSL 互转，调色板生成，颜色对比度</p>
+                            <div class="meta">
+                                <span class="tag">设计</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.5</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #f59e0b; --card-bg: rgba(245,158,11,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-file-zip-line"></i>
+                            </div>
+                            <h3>正则表达式</h3>
+                            <p>正则测试、可视化、常用表达式库</p>
+                            <div class="meta">
+                                <span class="tag">开发</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.4</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #ef4444; --card-bg: rgba(239,68,68,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-lock-password-line"></i>
+                            </div>
+                            <h3>密码生成器</h3>
+                            <p>生成强密码，支持自定义长度和字符集</p>
+                            <div class="meta">
+                                <span class="tag">安全</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.3</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #14b8a6; --card-bg: rgba(20,184,166,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-markdown-line"></i>
+                            </div>
+                            <h3>Markdown 预览</h3>
+                            <p>实时预览 Markdown，支持导出 HTML/PDF</p>
+                            <div class="meta">
+                                <span class="tag">文本</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.2</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 更多工具 -->
+                    <div class="section-title">
+                        <i class="ri-apps-2-line" style="color: #6366f1;"></i>
+                        更多工具
+                        <span class="badge">12</span>
+                    </div>
+                    <div class="tool-grid">
+                        <div class="tool-card" style="--card-accent: #6366f1; --card-bg: rgba(99,102,241,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-file-code-line"></i>
+                            </div>
+                            <h3>代码对比</h3>
+                            <p>文本/代码差异对比，行级高亮</p>
+                            <div class="meta">
+                                <span class="tag">开发</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.1</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #10b981; --card-bg: rgba(16,185,129,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-image-edit-line"></i>
+                            </div>
+                            <h3>图片压缩</h3>
+                            <p>批量压缩图片，保持质量减小体积</p>
+                            <div class="meta">
+                                <span class="tag">图片</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 4.0</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #ec4899; --card-bg: rgba(236,72,153,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-terminal-box-line"></i>
+                            </div>
+                            <h3>HTTP 请求</h3>
+                            <p>模拟 HTTP 请求，支持多种方法和 Headers</p>
+                            <div class="meta">
+                                <span class="tag">开发</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 3.9</span>
+                            </div>
+                        </div>
+                        <div class="tool-card" style="--card-accent: #06b6d4; --card-bg: rgba(6,182,212,0.15);">
+                            <div class="icon-wrap">
+                                <i class="ri-translate-2"></i>
+                            </div>
+                            <h3>文本转语音</h3>
+                            <p>将文本转换为语音，支持多种音色</p>
+                            <div class="meta">
+                                <span class="tag">文本</span>
+                                <span><i class="ri-star-fill" style="color: #f59e0b; font-size: 10px;"></i> 3.8</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧最近使用 -->
+                <div>
+                    <div class="section-title">
+                        <i class="ri-history-line" style="color: #6366f1;"></i>
+                        最近使用
+                    </div>
+                    <div class="recent-list">
+                        <div class="recent-item">
+                            <div class="ri-icon"><i class="ri-json-line"></i></div>
+                            <div class="info">
+                                <h4>JSON 格式化</h4>
+                                <span>格式化了一个 2KB 的 JSON 文件</span>
+                            </div>
+                            <div class="time">2分钟前</div>
+                        </div>
+                        <div class="recent-item">
+                            <div class="ri-icon" style="background: rgba(16,185,129,0.1); color: #10b981;"><i class="ri-time-line"></i></div>
+                            <div class="info">
+                                <h4>时间戳转换</h4>
+                                <span>转换了 1723456789</span>
+                            </div>
+                            <div class="time">15分钟前</div>
+                        </div>
+                        <div class="recent-item">
+                            <div class="ri-icon" style="background: rgba(236,72,153,0.1); color: #ec4899;"><i class="ri-hash-line"></i></div>
+                            <div class="info">
+                                <h4>Base64 编解码</h4>
+                                <span>编码了一段文本</span>
+                            </div>
+                            <div class="time">1小时前</div>
+                        </div>
+                        <div class="recent-item">
+                            <div class="ri-icon" style="background: rgba(6,182,212,0.1); color: #06b6d4;"><i class="ri-qr-code-line"></i></div>
+                            <div class="info">
+                                <h4>二维码生成</h4>
+                                <span>生成了包含 WiFi 信息的二维码</span>
+                            </div>
+                            <div class="time">3小时前</div>
+                        </div>
+                        <div class="recent-item">
+                            <div class="ri-icon" style="background: rgba(139,92,246,0.1); color: #8b5cf6;"><i class="ri-color-picker-line"></i></div>
+                            <div class="info">
+                                <h4>颜色工具</h4>
+                                <span>转换了 #6366f1 到 RGB</span>
+                            </div>
+                            <div class="time">昨天</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
