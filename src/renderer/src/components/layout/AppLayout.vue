@@ -3,11 +3,14 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ipcClient } from '../../ipc/client'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useToolsStore } from '../../stores/toolsStore'
 import AppTopBar from './AppTopBar.vue'
 import AppSidebar from './AppSidebar.vue'
 
 const router = useRouter()
 const settingsStore = useSettingsStore()
+const toolsStore = useToolsStore()
+const { activeCategory, setCategory } = toolsStore
 const sidebarCollapsed = ref(false)
 
 // 应用主题到 html 元素
@@ -53,8 +56,12 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkWidth)
 })
 
-function handleSelect(_category: string): void {
-  // 暂不处理分类选择逻辑
+function handleSelect(category: string): void {
+  setCategory(category)
+  // 如果当前在设置页，自动跳转回首页
+  if (router.currentRoute.value.path !== '/') {
+    router.push('/')
+  }
 }
 
 function handleOpenSettings(): void {
@@ -80,6 +87,7 @@ function handleToggleTheme(): void {
     <div class="flex flex-1 overflow-hidden">
       <AppSidebar
         :collapsed="sidebarCollapsed"
+        :active-category="activeCategory"
         @select="handleSelect"
       />
       <main class="flex-1 overflow-auto" :style="{ backgroundColor: 'var(--bg-base)' }">

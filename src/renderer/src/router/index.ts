@@ -17,6 +17,11 @@ const router = createRouter({
           path: 'settings',
           name: 'settings',
           component: () => import('../pages/settings.vue')
+        },
+        {
+          path: 'tools/:id',
+          name: 'tool',
+          component: () => import('../pages/tool-page.vue')
         }
       ]
     }

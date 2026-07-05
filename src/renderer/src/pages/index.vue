@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToolsStore } from '../stores/toolsStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import ToolSearch from '../components/tools/ToolSearch.vue'
@@ -9,6 +10,7 @@ import RecentList from '../components/tools/RecentList.vue'
 
 const { filteredTools, categories, activeCategory } = useToolsStore()
 const { recentTools } = useSettingsStore()
+const router = useRouter()
 
 // 将 filteredTools(ToolDefinition[]) 按分类分组为 CategorySection[]
 const filteredSections = computed(() => {
@@ -22,8 +24,7 @@ const filteredSections = computed(() => {
 })
 
 function handleToolClick(toolId: string) {
-  // TODO: 导航到工具详情页
-  console.log('Tool clicked:', toolId)
+  router.push(`/tools/${toolId}`)
 }
 
 const pageTitle = computed(() => {
