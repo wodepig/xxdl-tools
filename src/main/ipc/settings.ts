@@ -1,7 +1,8 @@
-import { ipcMain, app } from 'electron'
+import { ipcMain } from 'electron'
 import { join } from 'path'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import type { AppSettings } from '../../shared/types/settings'
+import { getAppDataDir } from '../utils/paths'
 
 const defaultSettings: AppSettings = {
   theme: 'dark',
@@ -12,7 +13,11 @@ const defaultSettings: AppSettings = {
 }
 
 function getSettingsPath(): string {
-  return join(app.getPath('userData'), 'settings.json')
+  const dir = getAppDataDir()
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true })
+  }
+  return join(dir, 'settings.json')
 }
 
 function readSettings(): AppSettings {

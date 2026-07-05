@@ -42,6 +42,16 @@ watch(() => settingsStore.theme.value, (newTheme) => {
   applyTheme(newTheme)
 })
 
+// 最近使用记录变化时持久化到 settings
+watch(() => settingsStore.recentTools.value, (recent) => {
+  ipcClient.setSettings({ recentTools: recent })
+}, { deep: true })
+
+// 置顶工具变化时持久化
+watch(() => settingsStore.pinnedTools.value, (pinned) => {
+  ipcClient.setSettings({ pinnedTools: pinned })
+}, { deep: true })
+
 // 响应式：窗口变窄时自动折叠侧边栏
 function checkWidth(): void {
   sidebarCollapsed.value = window.innerWidth < 1100

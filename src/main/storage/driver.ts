@@ -1,9 +1,9 @@
-import { app } from 'electron'
 import { join } from 'path'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
+import { getAppDataDir } from '../utils/paths'
 
 function getDataDir(): string {
-  const dir = join(app.getPath('userData'), 'data')
+  const dir = join(getAppDataDir(), 'tools')
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
   }

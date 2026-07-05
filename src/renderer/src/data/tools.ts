@@ -121,6 +121,16 @@ export const tools: ToolDefinition[] = [
     accentColor: '#06b6d4',
     rating: 3.8,
     tags: ['文本']
+  },
+  {
+    id: 'seentao-record',
+    name: '新道云刷课记录',
+    description: '记录学员刷课信息与截图，支持按年月归档',
+    icon: 'i-heroicons-academic-cap',
+    category: ToolCategory.Data,
+    accentColor: '#f97316',
+    rating: 4.0,
+    tags: ['数据', '业务']
   }
 ]
 
