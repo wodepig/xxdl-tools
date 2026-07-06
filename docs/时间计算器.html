@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间回溯计算器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .api-info {
+            font-size: 18px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .json-container, .curl-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .json-editor, .curl-editor {
+            width: 100%;
+            min-height: 220px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            margin-bottom: 10px;
+            font-family: 'Consolas', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .copy-btn {
+            padding: 8px 20px;
+            background-color: #2980b9;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .copy-btn:hover { background-color: #1f618d; }
+        .copy-btn:active { background-color: #1a5276; }
+        .current-time {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 40px;
+            color: #2c3e50;
+        }
+        .selector-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .selector-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .selector-item {
+            flex: 1;
+            min-width: 180px;
+        }
+        .selector-item label {
+            display: block;
+            margin-bottom: 8px;
+            color: #34495e;
+            font-weight: 500;
+        }
+        .selector-item input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .level-selector {
+            margin-bottom: 20px;
+            padding: 10px 0;
+        }
+        .level-selector label {
+            margin-right: 20px;
+            font-weight: 500;
+            color: #34495e;
+            font-size: 16px;
+        }
+        .token-input {
+            margin-bottom: 20px;
+        }
+        .token-input input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .result-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .result-item {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .result-item span {
+            font-weight: bold;
+            color: #2980b9;
+        }
+        .tip {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="api-info">接口地址：<span>https://api.yingdao.com/api/college/v1/book/addPlayRecord（POST）</span></div>
+
+    <div class="selector-container">
+        <!-- 级别切换 -->
+        <div class="level-selector">
+            <label><input type="radio" name="level" value="primary" checked> 初级</label>
+            <label><input type="radio" name="level" value="intermediate"> 中级</label>
+            <label><input type="radio" name="level" value="advanced"> 高级</label>
+        </div>
+
+        <!-- Token -->
+        <div class="selector-item token-input">
+            <label for="token">Bearer Token</label>
+            <input type="text" id="token" placeholder="请输入Token，不要Bearer">
+        </div>
+
+        <!-- 自定义 classInfoUuid -->
+        <div class="selector-item">
+            <label for="classInfoUuid">自定义 classInfoUuid（替换请求体）</label>
+            <input type="text" id="classInfoUuid" placeholder="留空则使用默认值">
+        </div>
+
+        <!-- 时间回溯 -->
+        <div class="selector-group">
+            <div class="selector-item">
+                <label for="days">向前推 天</label>
+                <input type="number" id="days" value="0" min="0">
+            </div>
+            <div class="selector-item">
+                <label for="hours">向前推 时</label>
+                <input type="number" id="hours" value="0" min="0">
+            </div>
+            <div class="selector-item">
+                <label for="minutes">向前推 分</label>
+                <input type="number" id="minutes" value="0" min="0">
+            </div>
+            <div class="selector-item">
+                <label for="seconds">向前推 秒</label>
+                <input type="number" id="seconds" value="0" min="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON -->
+    <div class="json-container">
+        <textarea class="json-editor" id="jsonEditor" readonly></textarea>
+        <button class="copy-btn" onclick="copyJson()">复制JSON</button>
+        <div class="tip">切换级别自动换请求体；输入classInfoUuid会自动替换</div>
+    </div>
+
+    <!-- CURL -->
+    <div class="curl-container">
+        <textarea class="curl-editor" id="curlEditor" readonly></textarea>
+        <button class="copy-btn" onclick="copyCurl()">复制CURL</button>
+        <div class="tip">可直接粘贴到Apifox导入</div>
+    </div>
+
+    <div class="current-time" id="currentTime"></div>
+
+    <div class="result-container">
+        <div class="result-item">回溯后时间：<span id="pastTimeStr"></span></div>
+        <div class="result-item">毫秒时间戳：<span id="pastTimeMs"></span></div>
+        <div class="result-item">duration（秒）：<span id="durationVal"></span></div>
+    </div>
+
+<script>
+// 三个级别请求体模板
+const templates = {
+    primary: {
+        "textLessonRecordUuid": "949937098688032768",
+        "textBookRecordUuid": "949937142829965312",
+        "classInfoUuid": "6e0d0d28-e74f-45a2-9ddf-88d907d9bda0",
+        "catalogUuid": "5f5ebb0e-84c4-4097-9e63-efc3038669a6",
+        "startTime": 0,
+        "endTime": 0,
+        "duration": 0
+    },
+    intermediate: {
+        "textLessonRecordUuid": "903938006921019392",
+        "textBookRecordUuid": "948027003428429824",
+        "classInfoUuid": "6e0d0d28-e74f-45a2-9ddf-88d907d9bda0",
+        "catalogUuid": "5c5603c3-e11b-4914-8092-bb9baf98bc4b",
+        "startTime": 0,
+        "endTime": 0,
+        "duration": 0
+    },
+    advanced: {
+        "textLessonRecordUuid": "937988ad-43c4-4e3a-adb1-05f2101f1e87",
+        "textBookRecordUuid": "936081757708402688",
+        "classInfoUuid": "6e0d0d28-e74f-45a2-9ddf-88d907d9bda0",
+        "catalogUuid": "0d98f86a-0750-482b-9c00-420f7cca872f",
+        "startTime": 0,
+        "endTime": 0,
+        "duration": 0
+    }
+};
+
+const apiUrl = "https://api.yingdao.com/api/college/v1/book/addPlayRecord";
+
+// 更新当前时间显示
+function updateNow() {
+    const d = new Date();
+    const h = String(d.getHours()).padStart(2,'0');
+    const m = String(d.getMinutes()).padStart(2,'0');
+    const s = String(d.getSeconds()).padStart(2,'0');
+    document.getElementById('currentTime').innerText = `当前时间：${h}:${m}:${s}`;
+}
+
+// 核心渲染：所有改动都会触发这里
+function render() {
+    // 1. 获取参数
+    const level = document.querySelector('input[name="level"]:checked').value;
+    const token = document.getElementById('token').value.trim();
+    const customClassId = document.getElementById('classInfoUuid').value.trim();
+    
+    const days = +document.getElementById('days').value || 0;
+    const hours = +document.getElementById('hours').value || 0;
+    const mins = +document.getElementById('minutes').value || 0;
+    const secs = +document.getElementById('seconds').value || 0;
+
+    // 2. 计算时间
+    const pastMs = (days*86400 + hours*3600 + mins*60 + secs) * 1000;
+    const now = new Date();
+    const endMs = now.getTime();
+    const startMs = endMs - pastMs;
+    const duration = Math.floor((endMs - startMs)/1000);
+
+    // 3. 加载模板 + 替换内容
+    const data = {...templates[level]};
+    // 如果用户输入了自定义classInfoUuid，则替换
+    if (customClassId) {
+        data.classInfoUuid = customClassId;
+    }
+    data.startTime = startMs;
+    data.endTime = endMs;
+    data.duration = duration;
+
+    // 4. 渲染JSON
+    const jsonStr = JSON.stringify(data, null, 4);
+    document.getElementById('jsonEditor').value = jsonStr;
+
+    // 5. 渲染结果
+    const startStr = new Date(startMs).toISOString().replace('T',' ').substring(0,19);
+    document.getElementById('pastTimeStr').innerText = startStr;
+    document.getElementById('pastTimeMs').innerText = startMs;
+    document.getElementById('durationVal').innerText = duration;
+
+    // 6. 生成CURL
+    let curl = `curl --location '${apiUrl}' \\\n`;
+    curl += `--request POST \\\n`;
+    if(token) curl += `--header 'Authorization: Bearer ${token}' \\\n`;
+    curl += `--header 'Content-Type: application/json' \\\n`;
+    curl += `--data '${jsonStr.replace(/'/g, "'\\''")}'`;
+    document.getElementById('curlEditor').value = curl;
+}
+
+// 复制功能
+function copyJson(){
+    const e = document.getElementById('jsonEditor');
+    e.select();document.execCommand('copy');
+}
+function copyCurl(){
+    const e = document.getElementById('curlEditor');
+    e.select();document.execCommand('copy');
+}
+
+// 绑定所有输入事件
+document.querySelectorAll('input[name="level"]').forEach(r=>r.addEventListener('change', render));
+document.getElementById('token').addEventListener('input', render);
+document.getElementById('classInfoUuid').addEventListener('input', render);
+['days','hours','minutes','seconds'].forEach(id=>{
+    document.getElementById(id).addEventListener('input', render);
+});
+
+// 初始化
+render();
+setInterval(()=>{ updateNow(); render(); }, 1000);
+</script>
+</body>
+</html>

@@ -16,9 +16,7 @@ const emit = defineEmits<{
 const categories = [
   { id: 'all', label: '全部工具', icon: 'i-heroicons-squares-2x2' },
   { id: 'development', label: '开发工具', icon: 'i-heroicons-code-bracket' },
-  { id: 'image', label: '图片处理', icon: 'i-heroicons-photo' },
-  { id: 'text', label: '文本工具', icon: 'i-heroicons-document-text' },
-  { id: 'security', label: '安全加密', icon: 'i-heroicons-lock-closed' },
+  { id: 'security', label: '安全加密', icon: 'i-heroicons-shield-check' },
   { id: 'data', label: '数据转换', icon: 'i-heroicons-arrow-path' }
 ]
 

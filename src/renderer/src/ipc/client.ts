@@ -1,6 +1,7 @@
 import type { AppSettings } from '../../../shared/types/settings'
 import { SEENTAO_IPC } from '../../../shared/types/seentao-record'
 import type { SeentaoRecord, DayRecords, SeentaoRecordConfig } from '../../../shared/types/seentao-record'
+import type { HttpRequestParams, HttpResponse } from '../../../main/tools/yingdao-study'
 
 const ipc = window.electron.ipcRenderer
 
@@ -66,6 +67,8 @@ export const ipcClient = {
   },
 
   // 通用 IPC 调用（供高级使用）
+  sendHttpRequest: (params: HttpRequestParams): Promise<HttpResponse> =>
+    ipc.invoke('yingdao-study:send-request', params),
   invoke: <T = unknown>(channel: string, ...args: unknown[]): Promise<T> =>
     ipc.invoke(channel, ...args),
   send: (channel: string, ...args: unknown[]): void => {

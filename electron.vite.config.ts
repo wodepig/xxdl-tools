@@ -13,6 +13,10 @@ export default defineConfig({
         // 重定向 Nuxt UI 的 Icon 组件到自定义组件（避免 @nuxt/icon 的 Nuxt runtime 依赖）
         '@nuxt/ui/runtime/components/Icon.vue': resolve(
           'src/renderer/src/components/ui/UIcon.vue'
+        ),
+        // 重定向 Nuxt UI 的 Button 组件到本地 UButton 组件
+        '@nuxt/ui/runtime/components/Button.vue': resolve(
+          'src/renderer/src/components/ui/UButton.vue'
         )
       }
     },
