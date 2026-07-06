@@ -88,7 +88,6 @@ async function applyWatermarkToImage(imagePath: string, preset: WatermarkPreset)
     const base64Data = preset.content.replace(/^data:image\/\w+;base64,/, '')
     const watermarkImg = await Jimp.read(Buffer.from(base64Data, 'base64'))
     const ww = watermarkImg.bitmap.width
-    const wh = watermarkImg.bitmap.height
 
     // 缩放（对文字和图片水印都有效）
     const scale = preset.scale || (preset.type === 'image' ? 20 : 100)

@@ -7,10 +7,14 @@ import { useToolsStore } from '../../stores/toolsStore'
 import AppTopBar from './AppTopBar.vue'
 import AppSidebar from './AppSidebar.vue'
 
+console.log('[AppLayout.vue] Script setup executing')
+
 const router = useRouter()
 const settingsStore = useSettingsStore()
 const toolsStore = useToolsStore()
 const { activeCategory, setCategory } = toolsStore
+
+console.log('[AppLayout.vue] Stores initialized')
 
 // 从 settingsStore 同步到本地 ref
 const sidebarCollapsed = ref(settingsStore.sidebarCollapsed.value)
@@ -39,17 +43,20 @@ function applyTheme(theme: string): void {
 
 // 启动时从主进程加载配置
 onMounted(async () => {
+  console.log('[AppLayout.vue] onMounted - loading settings')
   try {
     const settings = await ipcClient.getSettings()
+    console.log('[AppLayout.vue] Settings loaded:', settings)
     settingsStore.theme.value = settings.theme
     settingsStore.sidebarCollapsed.value = settings.sidebarCollapsed
     settingsStore.sidebarPinned.value = settings.sidebarPinned
     sidebarCollapsed.value = settings.sidebarCollapsed
     sidebarPinned.value = settings.sidebarPinned
   } catch (e) {
-    console.error('Failed to load settings:', e)
+    console.error('[AppLayout.vue] Failed to load settings:', e)
   }
   applyTheme(settingsStore.theme.value)
+  console.log('[AppLayout.vue] onMounted completed, theme applied:', settingsStore.theme.value)
 })
 
 // 监听主题变化

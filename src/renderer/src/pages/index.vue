@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToolsStore } from '../stores/toolsStore'
 import ToolSearch from '../components/tools/ToolSearch.vue'
 import ToolCategorySection from '../components/tools/ToolCategorySection.vue'
 
+console.log('[index.vue] Script setup executing')
+
 const { filteredTools, categories, activeCategory } = useToolsStore()
 const router = useRouter()
+
+onMounted(() => {
+  console.log('[index.vue] Component mounted, activeCategory:', activeCategory.value, 'tools count:', filteredTools.value.length)
+})
 
 // 将 filteredTools(ToolDefinition[]) 按分类分组为 CategorySection[]
 const filteredSections = computed(() => {

@@ -12,7 +12,10 @@ files:
 asarUnpack:
   - resources/**
 win:
+  icon: resources/icon.png
+  compression: normal
   executableName: xxdl-tools
+  target: zip
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

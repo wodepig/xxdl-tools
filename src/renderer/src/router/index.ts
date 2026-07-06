@@ -1,8 +1,10 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import AppLayout from '../components/layout/AppLayout.vue'
 
+console.log('[router] Creating router instance')
+
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes: [
     {
       path: '/',
@@ -11,21 +13,38 @@ const router = createRouter({
         {
           path: '',
           name: 'home',
-          component: () => import('../pages/index.vue')
+          component: () => {
+            console.log('[router] Loading index.vue (home)')
+            return import('../pages/index.vue')
+          }
         },
         {
           path: 'settings',
           name: 'settings',
-          component: () => import('../pages/settings.vue')
+          component: () => {
+            console.log('[router] Loading settings.vue')
+            return import('../pages/settings.vue')
+          }
         },
         {
           path: 'tools/:id',
           name: 'tool',
-          component: () => import('../pages/tool-page.vue')
+          component: () => {
+            console.log('[router] Loading tool-page.vue')
+            return import('../pages/tool-page.vue')
+          }
         }
       ]
     }
   ]
+})
+
+router.beforeEach((to, _from) => {
+  console.log('[router] Navigating to:', to.path, 'name:', to.name)
+})
+
+router.afterEach((to) => {
+  console.log('[router] Navigation completed:', to.path)
 })
 
 export default router
