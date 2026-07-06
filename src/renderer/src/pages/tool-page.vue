@@ -2,11 +2,9 @@
 import { ref, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { tools } from '../data/tools'
-import { useSettingsStore } from '../stores/settingsStore'
 
 const route = useRoute()
 const router = useRouter()
-const settingsStore = useSettingsStore()
 
 const tool = computed(() => tools.find(t => t.id === route.params.id))
 const component = ref()
@@ -28,17 +26,6 @@ watch(
   },
   { immediate: true }
 )
-
-function recordUsage(): void {
-  if (!tool.value) return
-  settingsStore.addRecent({
-    toolId: tool.value.id,
-    toolName: tool.value.name,
-    icon: tool.value.icon,
-    description: tool.value.description,
-    timestamp: Date.now()
-  })
-}
 </script>
 
 <template>
@@ -65,7 +52,7 @@ function recordUsage(): void {
       </div>
     </div>
     <!-- 工具内容区域：滚动 -->
-    <div class="flex-1 overflow-y-auto px-7 py-6" @click.once="recordUsage">
+    <div class="flex-1 overflow-y-auto px-7 py-6">
       <component :is="component" />
     </div>
   </div>

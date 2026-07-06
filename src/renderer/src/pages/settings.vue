@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToolsStore } from '../stores/toolsStore'
 import { ipcClient } from '../ipc/client'
@@ -15,35 +15,15 @@ const themeItems = [
   { label: '跟随系统', value: 'system' }
 ]
 
-// 从主进程加载配置
-onMounted(async () => {
-  try {
-    const settings = await ipcClient.getSettings()
-    settingsStore.theme.value = settings.theme
-    settingsStore.pinnedTools.value = settings.pinnedTools
-    settingsStore.recentTools.value = settings.recentTools
-    settingsStore.sidebarCollapsed.value = settings.sidebarCollapsed
-  } catch (e) {
-    console.error('Failed to load settings:', e)
-  }
-})
-
 function saveTheme(theme: 'dark' | 'light' | 'system'): void {
   settingsStore.theme.value = theme
   ipcClient.setSettings({ theme })
-}
-
-function togglePin(toolId: string): void {
-  settingsStore.togglePin(toolId)
-  ipcClient.setSettings({ pinnedTools: [...settingsStore.pinnedTools.value] })
 }
 
 function resetSettings(): void {
   settingsStore.reset()
   ipcClient.setSettings({
     theme: 'dark',
-    pinnedTools: [],
-    recentTools: [],
     sidebarCollapsed: false
   })
 }
@@ -94,36 +74,6 @@ async function handleClearAllToolData(): Promise<void> {
       </div>
     </section>
 
-    <!-- 工具管理 -->
-    <section class="mb-8">
-      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" :style="{ color: 'var(--text-primary)' }">
-        <UIcon name="i-heroicons-cube" class="w-5 h-5" />
-        快捷入口管理
-      </h2>
-      <div class="rounded-xl p-5 border" :style="{
-        backgroundColor: 'var(--bg-card)',
-        borderColor: 'var(--border)'
-      }">
-        <p class="text-xs mb-4" :style="{ color: 'var(--text-secondary)' }">选择要在快捷入口显示的工具</p>
-        <div class="flex flex-wrap gap-2">
-          <UBadge
-            v-for="tool in tools"
-            :key="tool.id"
-            :variant="settingsStore.isPinned(tool.id) ? 'solid' : 'outline'"
-            class="cursor-pointer select-none"
-            :style="{
-              backgroundColor: settingsStore.isPinned(tool.id) ? tool.accentColor : 'transparent',
-              borderColor: tool.accentColor,
-              color: settingsStore.isPinned(tool.id) ? '#fff' : tool.accentColor
-            }"
-            @click="togglePin(tool.id)"
-          >
-            {{ tool.name }}
-          </UBadge>
-        </div>
-      </div>
-    </section>
-
     <!-- 数据管理 -->
     <section class="mb-8">
       <h2 class="text-base font-semibold mb-4 flex items-center gap-2" :style="{ color: 'var(--text-primary)' }">
@@ -167,7 +117,7 @@ async function handleClearAllToolData(): Promise<void> {
         borderColor: 'var(--border)',
         color: 'var(--text-secondary)'
       }">
-        <p>DevToolbox v1.0.0</p>
+        <p>筱筱的工具箱 v1.0.0</p>
         <p class="mt-2">一个全能的开发者工具箱</p>
       </div>
     </section>

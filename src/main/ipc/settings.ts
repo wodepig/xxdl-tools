@@ -9,7 +9,8 @@ const defaultSettings: AppSettings = {
   pinnedTools: [],
   recentTools: [],
   toolSettings: [],
-  sidebarCollapsed: false
+  sidebarCollapsed: false,
+  sidebarPinned: false
 }
 
 function getSettingsPath(): string {

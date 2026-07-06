@@ -24,11 +24,6 @@ const categories = [
   { id: 'data', label: '数据转换', icon: 'i-heroicons-arrow-path' }
 ]
 
-const favorites = [
-  { id: 'favorites', label: '我的收藏', icon: 'i-heroicons-star' },
-  { id: 'recent', label: '使用记录', icon: 'i-heroicons-clock' }
-]
-
 function handleSelect(category: string): void {
   emit('select', category)
 }
@@ -54,41 +49,6 @@ function handleSelect(category: string): void {
       </span>
       <button
         v-for="item in categories"
-        :key="item.id"
-        class="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm transition-colors duration-150"
-        :class="
-          activeCategory === item.id
-            ? 'bg-[rgba(99,102,241,0.15)] text-[#6366f1]'
-            : 'hover:bg-[var(--border)]'
-        "
-        :style="activeCategory !== item.id ? { color: 'var(--text-secondary)' } : {}"
-        :title="collapsed ? item.label : undefined"
-        @click="handleSelect(item.id)"
-      >
-        <UIcon :name="item.icon" class="shrink-0" size="18" />
-        <span
-          v-if="!collapsed"
-          class="truncate whitespace-nowrap"
-        >
-          {{ item.label }}
-        </span>
-      </button>
-    </div>
-
-    <!-- 分割线 -->
-    <div v-if="!collapsed" class="mx-3 my-3 border-t" :style="{ borderColor: 'var(--border)' }" />
-
-    <!-- 收藏区域 -->
-    <div class="flex flex-col gap-1 px-3">
-      <span
-        v-if="!collapsed"
-        class="mb-1 px-2 text-xs font-medium uppercase tracking-wider"
-        :style="{ color: 'var(--text-muted)' }"
-      >
-        收藏
-      </span>
-      <button
-        v-for="item in favorites"
         :key="item.id"
         class="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm transition-colors duration-150"
         :class="

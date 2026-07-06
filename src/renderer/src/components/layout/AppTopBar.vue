@@ -19,13 +19,8 @@ const emit = defineEmits<{
   >
     <!-- 左侧 Logo -->
     <div class="flex items-center gap-3">
-      <div
-        class="flex h-8 w-8 items-center justify-center rounded-lg"
-        style="background: linear-gradient(135deg, #6366f1, #a855f7)"
-      >
-        <UIcon name="i-heroicons-squares-2x2" size="18" class="text-white" />
-      </div>
-      <span class="text-base font-semibold" style="color: var(--text-primary)">DevToolbox</span>
+      <img src="/icon.png" alt="筱筱的工具箱" class="h-8 w-8 rounded-lg object-cover" />
+      <span class="text-base font-semibold" style="color: var(--text-primary)">筱筱的工具箱</span>
     </div>
 
     <!-- 右侧操作按钮 -->

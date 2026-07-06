@@ -1,5 +1,5 @@
 appId: com.electron.app
-productName: xxdl-tools
+productName: 筱筱的工具箱
 directories:
   buildResources: build
 files:
