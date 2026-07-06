@@ -11,4 +11,5 @@ export interface AppSettings {
   recentTools: RecentItem[]
   toolSettings: ToolSettings[]
   sidebarCollapsed: boolean
+  sidebarPinned: boolean
 }

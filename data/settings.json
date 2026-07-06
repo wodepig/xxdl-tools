@@ -3,5 +3,6 @@
   "pinnedTools": [],
   "recentTools": [],
   "toolSettings": [],
-  "sidebarCollapsed": false
+  "sidebarCollapsed": true,
+  "sidebarPinned": false
 }

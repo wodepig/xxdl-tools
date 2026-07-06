@@ -41,6 +41,16 @@ export const tools: ToolDefinition[] = [
     accentColor: '#f97316',
     rating: 4.0,
     tags: ['数据', '业务']
+  },
+  {
+    id: 'watermark',
+    name: 'DOCX/PPT 水印添加',
+    description: '给 Word/PPT 文档中的图片批量添加文字或图片水印',
+    icon: 'i-heroicons-photo',
+    category: ToolCategory.Image,
+    accentColor: '#06b6d4',
+    rating: 4.0,
+    tags: ['图片', '文档']
   }
 ]
 
@@ -72,5 +82,12 @@ export const categories: CategorySection[] = [
     icon: 'i-heroicons-arrows-right-left',
     color: '#8b5cf6',
     tools: tools.filter(t => t.category === ToolCategory.Data)
+  },
+  {
+    id: ToolCategory.Image,
+    title: '图片处理',
+    icon: 'i-heroicons-photo',
+    color: '#10b981',
+    tools: tools.filter(t => t.category === ToolCategory.Image)
   }
 ]

@@ -11,7 +11,21 @@ const router = useRouter()
 const settingsStore = useSettingsStore()
 const toolsStore = useToolsStore()
 const { activeCategory, setCategory } = toolsStore
-const sidebarCollapsed = ref(false)
+
+// 从 settingsStore 同步到本地 ref
+const sidebarCollapsed = ref(settingsStore.sidebarCollapsed.value)
+const sidebarPinned = ref(settingsStore.sidebarPinned.value)
+
+// 同步到 settingsStore & 持久化
+watch(sidebarCollapsed, (val) => {
+  settingsStore.sidebarCollapsed.value = val
+  ipcClient.setSettings({ sidebarCollapsed: val })
+})
+
+watch(sidebarPinned, (val) => {
+  settingsStore.sidebarPinned.value = val
+  ipcClient.setSettings({ sidebarPinned: val })
+})
 
 // 应用主题到 html 元素
 function applyTheme(theme: string): void {
@@ -31,6 +45,9 @@ onMounted(async () => {
     settingsStore.pinnedTools.value = settings.pinnedTools
     settingsStore.recentTools.value = settings.recentTools
     settingsStore.sidebarCollapsed.value = settings.sidebarCollapsed
+    settingsStore.sidebarPinned.value = settings.sidebarPinned
+    sidebarCollapsed.value = settings.sidebarCollapsed
+    sidebarPinned.value = settings.sidebarPinned
   } catch (e) {
     console.error('Failed to load settings:', e)
   }
@@ -54,7 +71,9 @@ watch(() => settingsStore.pinnedTools.value, (pinned) => {
 
 // 响应式：窗口变窄时自动折叠侧边栏
 function checkWidth(): void {
-  sidebarCollapsed.value = window.innerWidth < 1100
+  if (window.innerWidth < 1100) {
+    sidebarCollapsed.value = true
+  }
 }
 
 onMounted(() => {
@@ -68,7 +87,6 @@ onUnmounted(() => {
 
 function handleSelect(category: string): void {
   setCategory(category)
-  // 如果当前在设置页，自动跳转回首页
   if (router.currentRoute.value.path !== '/') {
     router.push('/')
   }
@@ -83,6 +101,25 @@ function handleToggleTheme(): void {
   ipcClient.setSettings({ theme: settingsStore.theme.value })
   applyTheme(settingsStore.theme.value)
 }
+
+function toggleCollapse(): void {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  // 展开时自动取消固定
+  if (!sidebarCollapsed.value) {
+    sidebarPinned.value = false
+  }
+}
+
+function togglePin(): void {
+  sidebarPinned.value = !sidebarPinned.value
+}
+
+// 路由变化：进入工具页面时自动收起侧边栏（除非固定）
+router.afterEach((to) => {
+  if (to.name === 'tool' && !sidebarPinned.value) {
+    sidebarCollapsed.value = true
+  }
+})
 </script>
 
 <template>
@@ -97,8 +134,11 @@ function handleToggleTheme(): void {
     <div class="flex flex-1 overflow-hidden">
       <AppSidebar
         :collapsed="sidebarCollapsed"
+        :pinned="sidebarPinned"
         :active-category="activeCategory"
         @select="handleSelect"
+        @toggle-collapse="toggleCollapse"
+        @toggle-pin="togglePin"
       />
       <main class="flex-1 overflow-auto" :style="{ backgroundColor: 'var(--bg-base)' }">
         <router-view />

@@ -6,6 +6,7 @@ function useSettingsStoreInternal() {
   const pinnedTools = ref<string[]>([])
   const recentTools = ref<RecentItem[]>([])
   const sidebarCollapsed = ref(false)
+  const sidebarPinned = ref(false)
 
   function toggleTheme() {
     const next: Record<string, 'dark' | 'light' | 'system'> = {
@@ -43,6 +44,10 @@ function useSettingsStoreInternal() {
     sidebarCollapsed.value = !sidebarCollapsed.value
   }
 
+  function toggleSidebarPin() {
+    sidebarPinned.value = !sidebarPinned.value
+  }
+
   function isPinned(toolId: string): boolean {
     return pinnedTools.value.includes(toolId)
   }
@@ -70,10 +75,12 @@ function useSettingsStoreInternal() {
     pinnedTools,
     recentTools,
     sidebarCollapsed,
+    sidebarPinned,
     toggleTheme,
     togglePin,
     addRecent,
     toggleSidebar,
+    toggleSidebarPin,
     isPinned,
     clearRecent,
     removeRecent,
