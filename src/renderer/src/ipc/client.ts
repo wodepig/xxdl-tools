@@ -111,5 +111,30 @@ export const ipcClient = {
   },
   on: (channel: string, callback: (...args: unknown[]) => void): void => {
     ipc.on(channel, callback)
+  },
+
+  // 自动更新
+  checkForUpdates: (): Promise<void> => ipc.invoke('update:check'),
+  downloadUpdate: (): Promise<void> => ipc.invoke('update:download'),
+  quitAndInstall: (): Promise<void> => ipc.invoke('update:quit-and-install'),
+
+  // 更新状态事件监听
+  onUpdateChecking: (callback: () => void): void => {
+    ipc.on('update:checking', callback)
+  },
+  onUpdateAvailable: (callback: (info: { version: string }) => void): void => {
+    ipc.on('update:available', (_event, info) => callback(info))
+  },
+  onUpdateNotAvailable: (callback: () => void): void => {
+    ipc.on('update:not-available', callback)
+  },
+  onUpdateError: (callback: (info: { message: string }) => void): void => {
+    ipc.on('update:error', (_event, info) => callback(info))
+  },
+  onUpdateDownloadProgress: (callback: (progress: { percent: number }) => void): void => {
+    ipc.on('update:download-progress', (_event, progress) => callback(progress))
+  },
+  onUpdateDownloaded: (callback: (info: { version: string }) => void): void => {
+    ipc.on('update:downloaded', (_event, info) => callback(info))
   }
 }

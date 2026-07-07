@@ -15,8 +15,9 @@ win:
   icon: resources/icon.png
   compression: normal
   executableName: xxdl-tools
-  target: zip
 nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}

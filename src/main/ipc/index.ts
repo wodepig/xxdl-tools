@@ -3,6 +3,7 @@ import { registerSettingsHandlers } from './settings'
 import { registerDataHandlers } from './data'
 import { registerToolHandlers } from '../tools'
 import { registerSeentaoRecordHandlers } from './seentao-record'
+import { registerUpdaterHandlers } from './updater'
 
 export function registerAllIpcHandlers(): void {
   registerSystemHandlers()
@@ -10,4 +11,5 @@ export function registerAllIpcHandlers(): void {
   registerDataHandlers()
   registerToolHandlers()
   registerSeentaoRecordHandlers()
+  registerUpdaterHandlers()
 }

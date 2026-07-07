@@ -51,6 +51,16 @@ export const tools: ToolDefinition[] = [
     accentColor: '#06b6d4',
     rating: 4.0,
     tags: ['图片', '文档']
+  },
+  {
+    id: 'cloud-drive-share',
+    name: '网盘快捷分享',
+    description: '百度网盘/夸克网盘文件浏览与分享，支持查看次数限制',
+    icon: 'i-heroicons-share',
+    category: ToolCategory.Data,
+    accentColor: '#3b82f6',
+    rating: 4.0,
+    tags: ['网盘', '分享']
   }
 ]
 

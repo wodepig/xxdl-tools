@@ -6,6 +6,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { useToolsStore } from '../../stores/toolsStore'
 import AppTopBar from './AppTopBar.vue'
 import AppSidebar from './AppSidebar.vue'
+import UpdateDialog from './UpdateDialog.vue'
 
 console.log('[AppLayout.vue] Script setup executing')
 
@@ -139,5 +140,6 @@ router.afterEach((to) => {
         <router-view />
       </main>
     </div>
+    <UpdateDialog />
   </div>
 </template>
