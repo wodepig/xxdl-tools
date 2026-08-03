@@ -117,7 +117,7 @@ async function handleClearAllToolData(): Promise<void> {
         borderColor: 'var(--border)',
         color: 'var(--text-secondary)'
       }">
-        <p>筱筱的工具箱 v1.0.0</p>
+        <p>筱筱的工具箱 v1.1.0</p>
         <p class="mt-2">一个全能的开发者工具箱</p>
       </div>
     </section>

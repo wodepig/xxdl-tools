@@ -4,6 +4,15 @@ import type { SeentaoRecord, DayRecords, SeentaoRecordConfig } from '../../../sh
 import type { HttpRequestParams, HttpResponse } from '../../../main/tools/yingdao-study'
 import { WATERMARK_IPC } from '../../../shared/types/watermark'
 import type { WatermarkPreset, FileInfo, ImageInfo, PreviewFileParams } from '../../../shared/types/watermark'
+import { IMAGE_HOSTING_IPC } from '../../../shared/types/image-hosting'
+import type {
+  ImageHostingConfig,
+  OssConfig,
+  ConnectionTestResult,
+  UploadedImage,
+  UploadResult,
+  UploadParams
+} from '../../../shared/types/image-hosting'
 
 const ipc = window.electron.ipcRenderer
 
@@ -101,6 +110,26 @@ export const ipcClient = {
       ipc.invoke(WATERMARK_IPC.DELETE_PRESET, id),
     openFolder: (filePath: string): Promise<void> =>
       ipc.invoke(WATERMARK_IPC.OPEN_FOLDER, filePath)
+  },
+
+  // 图床工具
+  imageHosting: {
+    getConfig: (): Promise<ImageHostingConfig | null> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.GET_CONFIG),
+    saveConfig: (config: ImageHostingConfig): Promise<void> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.SAVE_CONFIG, config),
+    testConnection: (oss: OssConfig): Promise<ConnectionTestResult> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.TEST_CONNECTION, oss),
+    upload: (params: UploadParams): Promise<UploadResult> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.UPLOAD, params),
+    list: (): Promise<UploadedImage[]> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.LIST),
+    delete: (key: string): Promise<void> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.DELETE, key),
+    download: (key: string): Promise<void> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.DOWNLOAD, key),
+    openUrl: (url: string): Promise<void> =>
+      ipc.invoke(IMAGE_HOSTING_IPC.OPEN_URL, url)
   },
 
   // 通用 IPC 调用（供高级使用）

@@ -1,5 +1,6 @@
 import { registerYingdaoStudyHandlers } from './yingdao-study'
 import { registerWatermarkHandlers } from './watermark'
+import { registerImageHostingHandlers } from './image-hosting'
 
 /**
  * 注册所有工具的 IPC handler
@@ -8,4 +9,5 @@ import { registerWatermarkHandlers } from './watermark'
 export function registerToolHandlers(): void {
   registerYingdaoStudyHandlers()
   registerWatermarkHandlers()
+  registerImageHostingHandlers()
 }

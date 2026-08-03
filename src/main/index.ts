@@ -4,6 +4,11 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllIpcHandlers } from './ipc'
 import icon from '../../resources/icon.png?asset'
 
+// 必须在 app ready 之前设置：解决 Windows 下 GPU 磁盘缓存目录权限不足
+// （Unable to move/create cache: 拒绝访问）导致的刷屏报错
+app.commandLine.appendSwitch('disk-cache-size', '0')
+app.commandLine.appendSwitch('disable-gpu-cache')
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({

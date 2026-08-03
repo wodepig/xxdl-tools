@@ -61,6 +61,16 @@ export const tools: ToolDefinition[] = [
     accentColor: '#3b82f6',
     rating: 4.0,
     tags: ['网盘', '分享']
+  },
+  {
+    id: 'image-hosting',
+    name: '图床工具',
+    description: '配置阿里云 OSS，粘贴图片自动上传，查看最近上传列表',
+    icon: 'i-heroicons-cloud-arrow-up',
+    category: ToolCategory.Image,
+    accentColor: '#06b6d4',
+    rating: 4.0,
+    tags: ['图片', '图床']
   }
 ]
 
