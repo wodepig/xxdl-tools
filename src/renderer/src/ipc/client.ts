@@ -144,7 +144,8 @@ export const ipcClient = {
 
   // 自动更新
   checkForUpdates: (): Promise<void> => ipc.invoke('update:check'),
-  downloadUpdate: (): Promise<void> => ipc.invoke('update:download'),
+  downloadUpdate: (): Promise<{ ok: boolean; message?: string } | undefined> =>
+    ipc.invoke('update:download'),
   quitAndInstall: (): Promise<void> => ipc.invoke('update:quit-and-install'),
 
   // 更新状态事件监听

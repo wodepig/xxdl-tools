@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useToolsStore } from '../stores/toolsStore'
 import { ipcClient } from '../ipc/client'
@@ -8,6 +8,10 @@ const settingsStore = useSettingsStore()
 const { tools } = useToolsStore()
 const clearingData = ref(false)
 const clearDone = ref(false)
+
+const ipc = window.electron.ipcRenderer
+const checkingUpdate = ref(false)
+const updateMessage = ref('')
 
 const themeItems = [
   { label: '暗色', value: 'dark' },
@@ -42,6 +46,41 @@ async function handleClearAllToolData(): Promise<void> {
     clearingData.value = false
   }
 }
+
+async function handleCheckUpdate(): Promise<void> {
+  if (checkingUpdate.value) return
+  checkingUpdate.value = true
+  updateMessage.value = ''
+  await ipcClient.checkForUpdates()
+}
+
+// 只有手动点击检查更新时，才展示结果提示
+function applyUpdateResult(
+  status: 'latest' | 'available' | 'error',
+  version = ''
+): void {
+  if (!checkingUpdate.value) return
+  checkingUpdate.value = false
+  if (status === 'latest') {
+    updateMessage.value = '当前已是最新版本'
+  } else if (status === 'available') {
+    updateMessage.value = `发现新版本 v${version}，请按右下角提示下载安装`
+  } else {
+    updateMessage.value = '检查更新失败，请稍后重试'
+  }
+}
+
+onMounted(() => {
+  ipcClient.onUpdateNotAvailable(() => applyUpdateResult('latest'))
+  ipcClient.onUpdateAvailable((info) => applyUpdateResult('available', info.version))
+  ipcClient.onUpdateError(() => applyUpdateResult('error'))
+})
+
+onUnmounted(() => {
+  ipc.removeAllListeners('update:not-available')
+  ipc.removeAllListeners('update:available')
+  ipc.removeAllListeners('update:error')
+})
 </script>
 
 <template>
@@ -117,8 +156,25 @@ async function handleClearAllToolData(): Promise<void> {
         borderColor: 'var(--border)',
         color: 'var(--text-secondary)'
       }">
-        <p>筱筱的工具箱 v1.1.0</p>
+        <p>筱筱的工具箱 v1.0.2</p>
         <p class="mt-2">一个全能的开发者工具箱</p>
+
+        <!-- 检查更新 -->
+        <div class="flex items-center justify-between mt-4 pt-4 border-t" :style="{ borderColor: 'var(--border)' }">
+          <div>
+            <p class="text-sm font-medium" :style="{ color: 'var(--text-primary)' }">检查更新</p>
+            <p class="text-xs mt-1" :style="{ color: updateMessage.includes('失败') ? '#ef4444' : 'var(--text-muted)' }">
+              {{ updateMessage || '手动检查是否有新版本' }}
+            </p>
+          </div>
+          <UButton
+            :loading="checkingUpdate"
+            :disabled="checkingUpdate"
+            @click="handleCheckUpdate"
+          >
+            检查更新
+          </UButton>
+        </div>
       </div>
     </section>
 

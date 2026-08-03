@@ -15,6 +15,7 @@ const downloadProgress = ref(0)
 const downloadStarted = ref(false)
 const downloadDone = ref(false)
 const checking = ref(false)
+const downloadError = ref('')
 
 onMounted(() => {
   ipc.on('update:checking', () => {
@@ -61,7 +62,17 @@ onUnmounted(() => {
 })
 
 function handleDownload(): void {
-  ipcClient.downloadUpdate()
+  downloadError.value = ''
+  ipcClient
+    .downloadUpdate()
+    .then((result) => {
+      if (result && !result.ok) {
+        downloadError.value = result.message || '下载失败'
+      }
+    })
+    .catch(() => {
+      downloadError.value = '下载失败'
+    })
 }
 
 function handleInstall(): void {
@@ -110,6 +121,11 @@ function handleDismiss(): void {
           </div>
           <p class="text-xs mt-1" :style="{ color: 'var(--text-muted)' }">{{ downloadProgress }}%</p>
         </div>
+
+        <!-- 下载失败提示（如开发环境不能下载） -->
+        <p v-if="downloadError" class="text-xs mt-2" style="color: #ef4444">
+          {{ downloadError }}
+        </p>
 
         <!-- 操作按钮 -->
         <div class="mt-3 flex items-center gap-2">
