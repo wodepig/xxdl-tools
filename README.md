@@ -73,3 +73,10 @@ $ pnpm build:linux
 | `tools/{toolId}.json` | 各工具的私有配置 | 自动，由 `data:get/set` IPC 读写 |
 | `records/{YYYYMM}/{DD}.json` | 新道云刷课记录数据 | 用户新增记录时生成 |
 | `records/{YYYYMM}/images/{timestamp}_{random}.png` | 刷课截图 | 用户粘贴截图并保存时生成 |
+
+
+### 新增工具
+提示词: 我要新建一个json格式化工具, 学习项目风格, 先做原型图放到 docs目录中,写任务计划到.trae\specs
+src\main\tools\index.ts 中注册新的工具 handler
+src\renderer\src\pages\settings.vue 设置版本号
+src\renderer\src\data\tools.ts 中注册新的工具条目

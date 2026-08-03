@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阿里云 OSS 图床</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #26334d;
+            --bg-input: #0b1221;
+            --border: #334155;
+            --border-focus: #6366f1;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --accent-2: #10b981;
+            --accent-3: #f59e0b;
+            --accent-4: #ec4899;
+            --accent-5: #06b6d4;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 顶部导航栏 */
+        .top-bar {
+            height: 56px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            -webkit-app-region: drag;
+        }
+
+        .top-bar .left { display: flex; align-items: center; gap: 12px; }
+
+        .top-bar .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-5), var(--accent));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .top-bar .title { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+
+        .top-bar .right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+
+        .top-bar .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .top-bar .btn-icon:hover { background: var(--bg-card); color: var(--text-primary); }
+        .top-bar .btn-close:hover { background: #ef4444; color: #fff; }
+
+        /* 主布局 */
+        .main-layout { display: flex; height: 100vh; padding-top: 56px; }
+
+        /* 左侧边栏 */
+        .sidebar {
+            width: 220px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-section { padding: 0 16px; margin-bottom: 8px; }
+
+        .sidebar-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 8px 12px;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+        .sidebar-item.active {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--accent-5);
+            font-weight: 500;
+        }
+
+        .sidebar-item i { font-size: 18px; width: 20px; text-align: center; }
+
+        /* 主内容区 */
+        .content {
+            flex: 1;
+            padding: 28px 32px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .content-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .content-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .content-header h1 .icon-bg {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(6, 182, 212, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-5);
+            font-size: 22px;
+        }
+
+        .content-header .actions { display: flex; gap: 8px; }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: var(--bg-card-hover); color: var(--text-primary); border-color: var(--accent-5); }
+
+        .btn-primary {
+            background: var(--accent-5);
+            color: #fff;
+            border-color: var(--accent-5);
+        }
+
+        .btn-primary:hover { background: #0891b2; border-color: #0891b2; }
+
+        /* OSS 配置状态条 */
+        .config-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .config-bar .left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+
+        .config-bar .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+            flex-shrink: 0;
+        }
+
+        .config-bar .status-dot.offline {
+            background: var(--text-muted);
+            box-shadow: 0 0 0 4px rgba(100, 116, 139, 0.15);
+        }
+
+        .config-bar .info { flex: 1; min-width: 0; }
+
+        .config-bar .info h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .config-bar .info .meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .config-bar .info .meta span { display: flex; align-items: center; gap: 4px; }
+
+        .config-bar .actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+        /* 上传区域 */
+        .upload-zone {
+            background: var(--bg-card);
+            border: 2px dashed var(--border);
+            border-radius: 14px;
+            padding: 20px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--accent-5);
+            background: rgba(6, 182, 212, 0.04);
+        }
+
+        .upload-zone.dragging {
+            border-color: var(--accent-5);
+            background: rgba(6, 182, 212, 0.08);
+        }
+
+        .upload-zone .upload-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(6, 182, 212, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-5);
+            font-size: 22px;
+            margin: 0 auto 8px;
+        }
+
+        .upload-zone h2 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+
+        .upload-zone p { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+
+        /* 配置按钮状态点 */
+        .btn-with-dot { position: relative; }
+        .btn-with-dot .dot {
+            position: absolute;
+            top: 5px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 2px var(--bg-card);
+        }
+        .btn-with-dot .dot.error { background: var(--danger); }
+
+        /* 复制类型下拉 */
+        .copy-type-select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .copy-type-select:hover { border-color: var(--accent-5); color: var(--text-primary); }
+
+        /* 自动复制开关 */
+        .auto-copy-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+        .auto-copy-toggle:hover { border-color: var(--accent-5); color: var(--text-primary); }
+        .auto-copy-toggle .switch {
+            width: 28px;
+            height: 16px;
+            border-radius: 8px;
+            background: var(--bg-card-hover);
+            position: relative;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .auto-copy-toggle .switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .auto-copy-toggle.active { color: var(--accent-5); border-color: var(--accent-5); }
+        .auto-copy-toggle.active .switch { background: var(--accent-5); }
+        .auto-copy-toggle.active .switch::after { left: 14px; background: #fff; }
+
+        .list-header .actions .divider {
+            width: 1px;
+            height: 18px;
+            background: var(--border);
+            margin: 0 4px;
+        }
+
+        .upload-zone .upload-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .upload-zone .upload-hint kbd {
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border);
+            font-size: 11px;
+            font-family: 'SF Mono', Monaco, monospace;
+            color: var(--text-secondary);
+        }
+
+        /* 上传进度浮层 */
+        .upload-progress {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            right: 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--accent-5);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .upload-progress .spinner {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent-5);
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .upload-progress .info { flex: 1; min-width: 0; }
+        .upload-progress .info .name {
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+        .upload-progress .info .bar {
+            height: 4px;
+            background: var(--bg-card-hover);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .upload-progress .info .bar .fill {
+            height: 100%;
+            width: 65%;
+            background: linear-gradient(90deg, var(--accent-5), var(--accent));
+            border-radius: 2px;
+        }
+
+        /* 列表区域 */
+        .list-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 24px;
+        }
+
+        .list-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .list-header .title {
+            font-size: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .list-header .title .badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .list-header .actions { display: flex; gap: 8px; align-items: center; }
+
+        .list-header .filter {
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .list-header .filter:hover { border-color: var(--accent-5); color: var(--text-primary); }
+
+        /* 图片网格 */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 14px;
+        }
+
+        .image-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .image-card:hover {
+            border-color: var(--accent-5);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .image-card .thumb {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-card .thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-card .thumb .ext-icon {
+            font-size: 32px;
+            color: var(--text-muted);
+        }
+
+        .image-card .thumb .hover-actions {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .image-card:hover .thumb .hover-actions { opacity: 1; }
+
+        .image-card .thumb .hover-actions button {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: none;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .image-card .thumb .hover-actions button:hover { background: var(--accent-5); color: #fff; }
+        .image-card .thumb .hover-actions button.danger:hover { background: var(--danger); }
+
+        .image-card .thumb .format-tag {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(15, 23, 42, 0.7);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .image-card .info { padding: 10px 12px; }
+
+        .image-card .info .name {
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+
+        .image-card .info .meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .image-card .info .meta .size { font-family: 'SF Mono', Monaco, monospace; }
+
+        .image-card .info .url-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 8px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+
+        .image-card .info .url-row .url {
+            flex: 1;
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .image-card .info .url-row button {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .image-card .info .url-row button:hover { background: var(--bg-card-hover); color: var(--accent-5); }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state i { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+        .empty-state p { font-size: 13px; }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        /* 模态弹层（配置面板示意） */
+        .modal-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .modal {
+            width: 520px;
+            max-width: 90vw;
+            max-height: 85vh;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-header .close {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-header .close:hover { background: var(--bg-input); color: var(--text-primary); }
+
+        .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+        .form-row { display: flex; flex-direction: column; gap: 6px; }
+
+        .form-row label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .form-row label .req { color: var(--danger); }
+
+        .form-row input,
+        .form-row select {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .form-row input:focus,
+        .form-row select:focus {
+            border-color: var(--accent-5);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        }
+
+        .form-row .help { font-size: 11px; color: var(--text-muted); }
+
+        .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="top-bar">
+        <div class="left">
+            <div class="logo">
+                <i class="ri-image-2-line" style="color: #fff;"></i>
+            </div>
+            <span class="title">DevToolbox</span>
+        </div>
+        <div class="right">
+            <button class="btn-icon" title="设置"><i class="ri-settings-3-line"></i></button>
+            <button class="btn-icon" title="最小化"><i class="ri-subtract-line"></i></button>
+            <button class="btn-icon" title="最大化"><i class="ri-fullscreen-line"></i></button>
+            <button class="btn-icon btn-close" title="关闭"><i class="ri-close-line"></i></button>
+        </div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="main-layout">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">分类</div>
+                <div class="sidebar-item">
+                    <i class="ri-apps-line"></i>
+                    <span>全部工具</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-code-box-line"></i>
+                    <span>开发工具</span>
+                </div>
+                <div class="sidebar-item active">
+                    <i class="ri-image-line"></i>
+                    <span>图片处理</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-file-text-line"></i>
+                    <span>文本工具</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-shield-keyhole-line"></i>
+                    <span>安全加密</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-database-2-line"></i>
+                    <span>数据转换</span>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">收藏</div>
+                <div class="sidebar-item">
+                    <i class="ri-star-line"></i>
+                    <span>我的收藏</span>
+                </div>
+                <div class="sidebar-item">
+                    <i class="ri-history-line"></i>
+                    <span>使用记录</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容 -->
+        <main class="content">
+            <!-- 标题栏 -->
+            <div class="content-header">
+                <h1>
+                    <span class="icon-bg"><i class="ri-cloud-line"></i></span>
+                    图床工具
+                </h1>
+                <div class="actions">
+                    <button class="btn"><i class="ri-refresh-line"></i> 刷新列表</button>
+                    <button class="btn btn-primary btn-with-dot" title="OSS 配置">
+                        <i class="ri-settings-3-line"></i> OSS 配置
+                        <span class="dot" title="已连接"></span>
+                    </button>
+                    <!-- 未连接 / 配置失败时改用：<span class="dot error" title="未连接"></span> -->
+                </div>
+            </div>
+
+            <!-- 上传区域 -->
+            <div class="upload-zone">
+                <div class="upload-icon"><i class="ri-clipboard-line"></i></div>
+                <h2>粘贴 / 拖拽图片到此处上传</h2>
+                <p>支持 PNG / JPG / GIF / WebP / SVG，单文件最大 10MB</p>
+                <div class="upload-hint">
+                    <i class="ri-keyboard-line"></i>
+                    <span>快捷键：</span>
+                    <kbd>Ctrl</kbd> + <kbd>V</kbd> 粘贴 · 拖拽到此 · <kbd>点击</kbd> 选择文件
+                </div>
+
+                <!-- 上传中浮层（示意） -->
+                <!--
+                <div class="upload-progress">
+                    <div class="spinner"></div>
+                    <div class="info">
+                        <div class="name">screenshot_20260803_153022.png · 65%</div>
+                        <div class="bar"><div class="fill"></div></div>
+                    </div>
+                </div>
+                -->
+            </div>
+
+            <!-- 最近上传列表 -->
+            <div class="list-section">
+                <div class="list-header">
+                    <div class="title">
+                        <i class="ri-history-line" style="color: var(--accent-5);"></i>
+                        最近上传
+                        <span class="badge">前 50 条</span>
+                    </div>
+                    <div class="actions">
+                        <select class="copy-type-select" title="复制链接格式">
+                            <option value="url" selected>URL</option>
+                            <option value="md">MD</option>
+                            <option value="html">HTML</option>
+                        </select>
+                        <div class="auto-copy-toggle active" title="上传成功后自动复制链接">
+                            <span>自动复制</span>
+                            <span class="switch"></span>
+                        </div>
+                        <span class="divider"></span>
+                        <button class="filter">
+                            <i class="ri-filter-3-line"></i> 全部格式
+                        </button>
+                        <button class="filter">
+                            <i class="ri-sort-desc"></i> 最新优先
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 图片网格 -->
+                <div class="image-grid">
+                    <!-- 卡片 1 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">PNG</span>
+                            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=screenshots%20dashboard%20ui%20dark%20theme&image_size=square" alt="">
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">screenshot_20260803_153022.png</div>
+                            <div class="meta">
+                                <span class="size">256.4 KB</span>
+                                <span>3 分钟前</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 2 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">JPG</span>
+                            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=photo%20landscape%20mountain%20sunset&image_size=square" alt="">
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">banner_home_v2.jpg</div>
+                            <div class="meta">
+                                <span class="size">1.2 MB</span>
+                                <span>2 小时前</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 3 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">GIF</span>
+                            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=animated%20loading%20illustration%20colorful&image_size=square" alt="">
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">loading_spinner.gif</div>
+                            <div class="meta">
+                                <span class="size">512.8 KB</span>
+                                <span>昨天</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 4 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">WEBP</span>
+                            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=icon%20set%20flat%20design%20colorful%20grid&image_size=square" alt="">
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">icons_pack.webp</div>
+                            <div class="meta">
+                                <span class="size">88.3 KB</span>
+                                <span>昨天</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 5 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">PNG</span>
+                            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=code%20editor%20screenshot%20syntax%20highlighting&image_size=square" alt="">
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">code_snippet_001.png</div>
+                            <div class="meta">
+                                <span class="size">342.1 KB</span>
+                                <span>3 天前</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 6 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">SVG</span>
+                            <div class="ext-icon"><i class="ri-image-line"></i></div>
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">logo_brand.svg</div>
+                            <div class="meta">
+                                <span class="size">4.2 KB</span>
+                                <span>4 天前</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 7 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">PNG</span>
+                            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=design%20mockup%20wireframe%20mobile%20app&image_size=square" alt="">
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">mockup_mobile_v3.png</div>
+                            <div class="meta">
+                                <span class="size">512.7 KB</span>
+                                <span>5 天前</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 卡片 8 -->
+                    <div class="image-card">
+                        <div class="thumb">
+                            <span class="format-tag">JPG</span>
+                            <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=abstract%20gradient%20background%20purple%20blue&image_size=square" alt="">
+                            <div class="hover-actions">
+                                <button title="复制链接"><i class="ri-link"></i></button>
+                                <button title="在新窗口打开"><i class="ri-external-link-line"></i></button>
+                                <button title="下载"><i class="ri-download-line"></i></button>
+                                <button class="danger" title="删除"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        <div class="info">
+                            <div class="name">bg_gradient_04.jpg</div>
+                            <div class="meta">
+                                <span class="size">198.5 KB</span>
+                                <span>1 周前</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- OSS 配置弹层（示意，默认隐藏） -->
+    <!--
+    <div class="modal-mask">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="ri-settings-3-line" style="color: var(--accent-5);"></i> 阿里云 OSS 配置</h2>
+                <button class="close"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row-2">
+                    <div class="form-row">
+                        <label>区域 Region <span class="req">*</span></label>
+                        <input type="text" value="oss-cn-hangzhou" placeholder="如 oss-cn-hangzhou">
+                    </div>
+                    <div class="form-row">
+                        <label>Bucket 名称 <span class="req">*</span></label>
+                        <input type="text" value="xxdl-images" placeholder="Bucket 名称">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label>AccessKey ID <span class="req">*</span></label>
+                    <input type="text" value="LTAI5t••••••••••••" placeholder="阿里云 RAM 用户 AccessKey ID">
+                </div>
+                <div class="form-row">
+                    <label>AccessKey Secret <span class="req">*</span></label>
+                    <input type="password" value="••••••••••••••••" placeholder="阿里云 RAM 用户 AccessKey Secret">
+                </div>
+                <div class="form-row">
+                    <label>Endpoint</label>
+                    <input type="text" value="oss-cn-hangzhou.aliyuncs.com" placeholder="留空则使用 {region}.aliyuncs.com">
+                    <span class="help">默认使用 {region}.aliyuncs.com，自定义域名请填写完整地址</span>
+                </div>
+                <div class="form-row">
+                    <label>自定义域名</label>
+                    <input type="text" value="https://img.example.com" placeholder="如 https://img.example.com">
+                    <span class="help">绑定 CDN 或自定义域名后填写，留空则使用 Bucket 默认域名</span>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-row">
+                        <label>存储路径前缀</label>
+                        <input type="text" value="uploads/" placeholder="如 uploads/ 或 uploads/2026/">
+                    </div>
+                    <div class="form-row">
+                        <label>文件命名规则</label>
+                        <select>
+                            <option>保留原名</option>
+                            <option selected>时间戳 + 随机串</option>
+                            <option>YYYY/MM/DD/原名</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn">取消</button>
+                <button class="btn"><i class="ri-plug-line"></i> 测试连接</button>
+                <button class="btn btn-primary"><i class="ri-save-line"></i> 保存配置</button>
+            </div>
+        </div>
+    </div>
+    -->
+</body>
+</html>
