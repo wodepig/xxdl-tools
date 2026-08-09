@@ -80,3 +80,4 @@ $ pnpm build:linux
 src\main\tools\index.ts 中注册新的工具 handler
 src\renderer\src\pages\settings.vue 设置版本号
 src\renderer\src\data\tools.ts 中注册新的工具条目
+package.json设置版本号

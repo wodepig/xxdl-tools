@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "@nuxt/ui";
+@import 'tailwindcss';
+@import '@nuxt/ui';
 
 /* ========== 主题系统 ========== */
 
@@ -14,6 +14,13 @@
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
+  /* JSON 语法高亮（深色主题用浅色值） */
+  --json-key: #93c5fd;
+  --json-string: #86efac;
+  --json-number: #fca5a5;
+  --json-boolean: #c4b5fd;
+  --json-null: #fda4af;
+  --json-punct: #94a3b8;
 }
 
 [data-theme='light'] {
@@ -26,6 +33,13 @@
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #94a3b8;
+  /* JSON 语法高亮（亮色主题用深色值） */
+  --json-key: #2563eb;
+  --json-string: #16a34a;
+  --json-number: #dc2626;
+  --json-boolean: #7c3aed;
+  --json-null: #e11d48;
+  --json-punct: #64748b;
 }
 
 body {
@@ -34,10 +48,13 @@ body {
   overflow: hidden;
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   user-select: none;
   -webkit-user-select: none;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 #app {

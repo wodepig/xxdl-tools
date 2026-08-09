@@ -13,6 +13,16 @@ export const tools: ToolDefinition[] = [
     tags: ['开发']
   },
   {
+    id: 'json-formatter',
+    name: 'JSON 格式化',
+    description: 'JSON 格式化、压缩、校验与语法高亮，支持多会话管理',
+    icon: 'i-heroicons-braces',
+    category: ToolCategory.Development,
+    accentColor: '#6366f1',
+    rating: 4.9,
+    tags: ['开发']
+  },
+  {
     id: 'base64',
     name: 'Base64 编解码',
     description: 'Base64 编码/解码，支持图片转 Base64',

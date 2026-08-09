@@ -132,6 +132,17 @@ export const ipcClient = {
       ipc.invoke(IMAGE_HOSTING_IPC.OPEN_URL, url)
   },
 
+  // JSON 格式化工具
+  jsonFormatter: {
+    saveFile: (
+      params: {
+        defaultName: string
+        content: string
+      }
+    ): Promise<{ ok: boolean; canceled?: boolean; path?: string }> =>
+      ipc.invoke('json-formatter:save-file', params)
+  },
+
   // 通用 IPC 调用（供高级使用）
   invoke: <T = unknown>(channel: string, ...args: unknown[]): Promise<T> =>
     ipc.invoke(channel, ...args),
