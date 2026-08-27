@@ -143,6 +143,14 @@ export const ipcClient = {
       ipc.invoke('json-formatter:save-file', params)
   },
 
+  // HAR 查看工具
+  harViewer: {
+    openFiles: (): Promise<{ canceled: boolean; files?: { name: string; path: string; content: string }[] }> =>
+      ipc.invoke('har-viewer:open-files'),
+    readFile: (filePath: string): Promise<string | null> =>
+      ipc.invoke('har-viewer:read-file', filePath)
+  },
+
   // 通用 IPC 调用（供高级使用）
   invoke: <T = unknown>(channel: string, ...args: unknown[]): Promise<T> =>
     ipc.invoke(channel, ...args),

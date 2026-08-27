@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAR 查看工具 - DevToolbox</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #26334d;
+            --bg-input: #0b1221;
+            --border: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 顶部导航栏 */
+        .top-bar {
+            height: 56px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            -webkit-app-region: drag;
+        }
+
+        .top-bar .left { display: flex; align-items: center; gap: 12px; }
+
+        .top-bar .logo {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+
+        .top-bar .title { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; }
+
+        .top-bar .right { display: flex; align-items: center; gap: 8px; -webkit-app-region: no-drag; }
+
+        .top-bar .btn-icon {
+            width: 32px; height: 32px; border-radius: 6px; border: none;
+            background: transparent; color: var(--text-secondary);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; font-size: 16px;
+        }
+        .top-bar .btn-icon:hover { background: var(--bg-card); color: var(--text-primary); }
+        .top-bar .btn-close:hover { background: #ef4444; color: #fff; }
+
+        /* 主布局 */
+        .main-layout { display: flex; height: 100vh; padding-top: 56px; }
+
+        /* 左侧导航边栏 */
+        .sidebar {
+            width: 220px; background: var(--bg-card); border-right: 1px solid var(--border);
+            padding: 20px 0; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0;
+        }
+        .sidebar-section { padding: 0 16px; margin-bottom: 8px; }
+        .sidebar-section-title {
+            font-size: 11px; font-weight: 600; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 1px; padding: 8px 12px; margin-bottom: 4px;
+        }
+        .sidebar-item {
+            display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s; color: var(--text-secondary);
+            font-size: 14px; margin-bottom: 2px; text-decoration: none;
+        }
+        .sidebar-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+        .sidebar-item.active { background: rgba(99, 102, 241, 0.15); color: var(--accent); font-weight: 500; }
+        .sidebar-item i { font-size: 18px; width: 20px; text-align: center; }
+
+        /* HAR 文件列表面板 */
+        .file-panel {
+            width: 260px; background: var(--bg-card); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .file-panel-header { padding: 20px 16px 12px; border-bottom: 1px solid var(--border); }
+        .file-panel-header h2 {
+            font-size: 14px; font-weight: 600; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+        }
+        .btn-new {
+            width: 100%; padding: 10px 12px; border-radius: 8px;
+            border: 1px dashed var(--border); background: transparent; color: var(--text-secondary);
+            font-size: 13px; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 6px; transition: all 0.2s;
+        }
+        .btn-new:hover { border-color: var(--accent); color: var(--accent); background: rgba(99, 102, 241, 0.05); }
+
+        .file-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .file-item {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
+            cursor: pointer; transition: all 0.2s; color: var(--text-secondary);
+            font-size: 13px; margin-bottom: 4px; border: 1px solid transparent;
+        }
+        .file-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+        .file-item.active { background: rgba(99, 102, 241, 0.12); color: var(--accent); border-color: rgba(99, 102, 241, 0.3); }
+        .file-item .file-icon {
+            width: 34px; height: 34px; border-radius: 8px; background: rgba(99, 102, 241, 0.15);
+            display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+        }
+        .file-item.active .file-icon { background: var(--accent); color: #fff; }
+        .file-item .file-info { flex: 1; min-width: 0; }
+        .file-item .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .file-item .file-meta { font-size: 11px; opacity: 0.7; }
+        .file-item .file-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.2s; }
+        .file-item:hover .file-actions { opacity: 1; }
+        .file-actions button {
+            width: 24px; height: 24px; border-radius: 4px; border: none; background: transparent;
+            color: var(--text-secondary); cursor: pointer; display: flex; align-items: center;
+            justify-content: center; font-size: 13px;
+        }
+        .file-actions button:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+        .file-actions .btn-remove:hover { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+        .file-item .file-badge {
+            font-size: 10px; padding: 1px 5px; border-radius: 4px; background: rgba(16,185,129,0.15); color: var(--success);
+        }
+        .file-item .btn-remove-file {
+            opacity: 0; position: absolute; right: 8px;
+        }
+
+        /* 主内容区 */
+        .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .content-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+        }
+        .content-header .left h1 { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .content-header .left .path { color: var(--text-secondary); font-size: 12px; margin-top: 4px; }
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+            border-radius: 6px; font-size: 12px; font-weight: 500;
+        }
+        .status-badge.info { background: rgba(99,102,241,0.15); color: var(--accent); }
+
+        /* 工具栏 */
+        .toolbar {
+            padding: 10px 20px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .toolbar-btn {
+            padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg-card); color: var(--text-secondary); font-size: 13px;
+            cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+        }
+        .toolbar-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); border-color: var(--accent); }
+        .toolbar-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .toolbar-btn.primary:hover { background: var(--accent-hover); }
+        .toolbar-sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; }
+        .search-box {
+            display: flex; align-items: center; gap: 6px; background: var(--bg-input);
+            border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; height: 33px;
+        }
+        .search-box input {
+            background: transparent; border: none; outline: none; color: var(--text-primary);
+            font-size: 13px; width: 200px;
+        }
+        .search-box i { color: var(--text-muted); }
+        .filter-select {
+            padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg-card); color: var(--text-primary); font-size: 13px;
+            outline: none; cursor: pointer;
+        }
+        .deep-search {
+            display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px;
+            border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card);
+            color: var(--text-secondary); font-size: 13px; cursor: pointer; transition: all 0.2s;
+        }
+        .deep-search:hover { border-color: var(--accent); color: var(--text-primary); }
+        .deep-search:has(input:checked) { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.08); }
+        .deep-search input { accent-color: var(--accent); cursor: pointer; }
+
+        /* 汇总概览卡片 */
+        .summary-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;
+            padding: 14px 20px; border-bottom: 1px solid var(--border);
+        }
+        .stat-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+            padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;
+        }
+        .stat-card .stat-label { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; }
+        .stat-card .stat-value { font-size: 20px; font-weight: 700; line-height: 1; }
+        .stat-card.ok .stat-value { color: var(--success); }
+        .stat-card.warn .stat-value { color: var(--warning); }
+        .stat-card.bad .stat-value { color: var(--error); }
+        .stat-card.info .stat-value { color: var(--accent); }
+
+        /* 请求表格 */
+        .table-wrap { flex: 1; overflow: auto; min-height: 0; }
+        table.entries { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.entries thead th {
+            position: sticky; top: 0; background: var(--bg-card); z-index: 2;
+            padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 600;
+            color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border); white-space: nowrap;
+        }
+        table.entries tbody td {
+            padding: 7px 10px; border-bottom: 1px solid rgba(51,65,85,0.4);
+            white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis;
+        }
+        table.entries tbody tr { cursor: pointer; transition: background 0.15s; }
+        table.entries tbody tr:hover { background: rgba(255,255,255,0.04); }
+        table.entries tbody tr.active { background: rgba(99,102,241,0.12); }
+        .method-tag {
+            display: inline-block; padding: 2px 6px; border-radius: 4px;
+            font-size: 11px; font-weight: 600; font-family: monospace;
+        }
+        .method-GET { background: rgba(16,185,129,0.15); color: var(--success); }
+        .method-POST { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .method-PUT { background: rgba(99,102,241,0.15); color: var(--accent); }
+        .method-DELETE { background: rgba(239,68,68,0.15); color: var(--error); }
+        .method-HEAD, .method-OPTIONS { background: rgba(100,116,139,0.2); color: var(--text-secondary); }
+        .status-dot { display: inline-block; width: 14px; height: 14px; border-radius: 4px; font-size: 10px; line-height: 14px; text-align: center; font-weight: 700; margin-right: 6px; }
+        .status-2xx { background: rgba(16,185,129,0.25); color: var(--success); }
+        .status-3xx { background: rgba(59,130,246,0.25); color: #60a5fa; }
+        .status-4xx { background: rgba(245,158,11,0.25); color: var(--warning); }
+        .status-5xx { background: rgba(239,68,68,0.25); color: var(--error); }
+        .url-cell { color: var(--text-primary); font-family: monospace; }
+        .domain-cell { color: var(--text-secondary); font-family: monospace; }
+        .muted { color: var(--text-muted); }
+        .empty-hit {
+            padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px;
+        }
+
+        /* 耗时进度条（表格列） */
+        .time-bar { display: inline-flex; align-items: center; gap: 6px; min-width: 110px; max-width: 150px; }
+        .time-bar .track { flex: 1; height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; }
+        .time-bar .fill { height: 100%; background: linear-gradient(90deg, var(--success), var(--accent)); border-radius: 3px; }
+        .time-val { font-size: 12px; color: var(--text-muted); min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+
+        /* 时间瀑布（详情顶部进度条） */
+        .waterfall {
+            padding: 10px 16px; border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .waterfall .wf-total {
+            font-size: 11px; color: var(--text-secondary);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .waterfall .wf-total .strong { color: var(--text-primary); font-weight: 600; }
+        .waterfall .wf-track {
+            display: flex; height: 16px; border-radius: 3px; overflow: hidden; background: var(--bg-input);
+        }
+        .waterfall .wf-seg { height: 100%; transition: width 0.3s ease; }
+        .waterfall .wf-seg:hover { filter: brightness(1.2); }
+        .wf-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
+        .wf-legend .dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 4px; vertical-align: baseline; }
+
+        /* 详情面板 */
+        .detail-panel {
+            height: 42%; background: var(--bg-card); border-top: 1px solid var(--border);
+            display: flex; flex-direction: column; min-height: 200px;
+        }
+        .detail-tabs { display: flex; align-items: center; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border); }
+        .detail-tab {
+            padding: 10px 14px; font-size: 13px; color: var(--text-secondary); cursor: pointer;
+            border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 6px;
+        }
+        .detail-tab:hover { color: var(--text-primary); }
+        .detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+        .detail-tab .count { font-size: 11px; color: var(--text-muted); }
+        .detail-body { flex: 1; overflow: auto; padding: 0; }
+        .kv-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .kv-table td { padding: 6px 12px; border-bottom: 1px solid rgba(51,65,85,0.3); vertical-align: top; }
+        .kv-table td:first-child { width: 200px; color: var(--text-secondary); font-weight: 500; white-space: nowrap; }
+        .kv-table td:last-child { font-family: monospace; word-break: break-all; color: var(--text-primary); }
+        .section-block { padding: 12px 16px; }
+        .section-title { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 6px; }
+        .code-body { 
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+            font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+            padding: 12px 16px;
+        }
+        .body-toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid rgba(51,65,85,0.4); }
+        .body-toolbar .mime { font-size: 11px; color: var(--text-muted); font-family: monospace; }
+        .body-toolbar .spacer { flex: 1; }
+        .mini-btn {
+            padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer;
+        }
+        .mini-btn:hover { color: var(--text-primary); border-color: var(--accent); }
+
+        /* JSON 语法高亮 */
+        .json-key { color: #93c5fd; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fca5a5; }
+        .json-boolean { color: #c4b5fd; }
+        .json-null { color: #fda4af; }
+        .json-brace { color: #e2e8f0; }
+        .json-colon, .json-comma { color: #94a3b8; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; border-radius: 10px;
+            background: var(--bg-card); border: 1px solid var(--success); color: var(--success);
+            font-size: 13px; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: translateY(100px); opacity: 0;
+            transition: all 0.3s ease; z-index: 200;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.error { border-color: var(--error); color: var(--error); }
+
+        /* 空状态 */
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; color: var(--text-secondary); gap: 12px; padding: 40px;
+        }
+        .empty-state i { font-size: 48px; opacity: 0.3; }
+        .empty-state p { font-size: 14px; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        @media (max-width: 1100px) {
+            .sidebar { width: 64px; }
+            .sidebar-section-title, .sidebar-item span { display: none; }
+            .sidebar-item { justify-content: center; padding: 10px; }
+            .file-panel { width: 220px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="top-bar">
+        <div class="left">
+            <div class="logo"><i class="ri-file-chart-line" style="color: #fff;"></i></div>
+            <span class="title">DevToolbox</span>
+            <span style="color: var(--border); margin: 0 8px;">/</span>
+            <span style="font-size: 14px; color: var(--text-secondary);">HAR 查看</span>
+        </div>
+        <div class="right">
+            <button class="btn-icon" title="设置"><i class="ri-settings-3-line"></i></button>
+            <button class="btn-icon" title="最小化"><i class="ri-subtract-line"></i></button>
+            <button class="btn-icon" title="最大化"><i class="ri-fullscreen-line"></i></button>
+            <button class="btn-icon btn-close" title="关闭"><i class="ri-close-line"></i></button>
+        </div>
+    </div>
+
+    <!-- 隐藏的文件选择器 -->
+    <input type="file" id="fileInput" accept=".har,.json" multiple style="display:none;">
+    <input type="file" id="fileInputSingle" accept=".har,.json" style="display:none;">
+
+    <div class="main-layout">
+        <!-- 左侧导航边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">分类</div>
+                <a href="#" class="sidebar-item"><i class="ri-apps-line"></i><span>全部工具</span></a>
+                <a href="#" class="sidebar-item active"><i class="ri-code-box-line"></i><span>开发工具</span></a>
+                <a href="#" class="sidebar-item"><i class="ri-image-line"></i><span>图片处理</span></a>
+                <a href="#" class="sidebar-item"><i class="ri-file-text-line"></i><span>文本工具</span></a>
+                <a href="#" class="sidebar-item"><i class="ri-database-2-line"></i><span>数据转换</span></a>
+            </div>
+        </aside>
+
+        <!-- HAR 文件列表面板 -->
+        <div class="file-panel">
+            <div class="file-panel-header">
+                <h2>HAR 文件</h2>
+                <button class="btn-new" onclick="document.getElementById('fileInput').click()">
+                    <i class="ri-folder-open-line"></i> 打开文件…
+                </button>
+            </div>
+            <div class="file-list" id="fileList"></div>
+        </div>
+
+        <!-- 主内容 -->
+        <main class="content">
+            <div class="content-header">
+                <div class="left">
+                    <h1><i class="ri-file-chart-line" style="color: var(--accent);"></i><span id="titleText">HAR 查看</span></h1>
+                    <div class="path" id="currentMeta">点击左侧文件或「打开文件」导入 HAR</div>
+                </div>
+                <div>
+                    <span class="status-badge info" id="countBadge" style="display:none;"><i class="ri-file-list-3-line"></i> <span id="countText"></span></span>
+                </div>
+            </div>
+
+            <!-- 工具栏 -->
+            <div class="toolbar" id="toolbar" style="display:none;">
+                <div class="search-box">
+                    <i class="ri-search-line"></i>
+                    <input id="searchInput" placeholder="搜索 URL / 方法 / 状态…" oninput="renderTable()">
+                </div>
+                <select class="filter-select" id="statusFilter" onchange="renderTable()">
+                    <option value="all">全部状态</option>
+                    <option value="2xx">2xx 成功</option>
+                    <option value="3xx">3xx 重定向</option>
+                    <option value="4xx">4xx 客户端错误</option>
+                    <option value="5xx">5xx 服务端错误</option>
+                </select>
+                <label class="deep-search" title="同时搜索请求体、响应体、请求头/响应头、Query 等全文内容">
+                    <input type="checkbox" id="deepSearch" onchange="renderTable()">
+                    <span>深度搜索</span>
+                </label>
+                <div class="toolbar-sep"></div>
+                <button class="toolbar-btn" title="导出选中文件" onclick="exportActive()"><i class="ri-download-2-line"></i> 导出</button>
+            </div>
+
+            <!-- 汇总概览 -->
+            <div class="summary-row" id="summaryRow" style="display:none;">
+                <div class="stat-card info">
+                    <span class="stat-label"><i class="ri-file-list-3-line"></i> 请求总数</span>
+                    <span class="stat-value" id="statTotal">0</span>
+                </div>
+                <div class="stat-card ok">
+                    <span class="stat-label"><i class="ri-check-line"></i> 成功 2xx</span>
+                    <span class="stat-value" id="stat2xx">0</span>
+                </div>
+                <div class="stat-card info">
+                    <span class="stat-label"><i class="ri-share-forward-line"></i> 重定向 3xx</span>
+                    <span class="stat-value" id="stat3xx">0</span>
+                </div>
+                <div class="stat-card warn">
+                    <span class="stat-label"><i class="ri-error-warning-line"></i> 4xx</span>
+                    <span class="stat-value" id="stat4xx">0</span>
+                </div>
+                <div class="stat-card bad">
+                    <span class="stat-label"><i class="ri-close-circle-line"></i> 5xx</span>
+                    <span class="stat-value" id="stat5xx">0</span>
+                </div>
+                <div class="stat-card info">
+                    <span class="stat-label"><i class="ri-timer-line"></i> 平均耗时</span>
+                    <span class="stat-value" id="statTime">-</span>
+                </div>
+                <div class="stat-card info">
+                    <span class="stat-label"><i class="ri-hdd-line"></i> 传输大小</span>
+                    <span class="stat-value" id="statSize">-</span>
+                </div>
+            </div>
+
+            <!-- 请求表格 -->
+            <div class="table-wrap" id="tableWrap">
+                <div class="empty-state" id="emptyState">
+                    <i class="ri-file-chart-line"></i>
+                    <p>导入 HAR 文件后，在此查看网络请求列表</p>
+                </div>
+                <table class="entries" id="entryTable" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th style="width:44px;">#</th>
+                            <th style="width:70px;">状态</th>
+                            <th style="width:80px;">方法</th>
+                            <th style="width:180px;">域名</th>
+                            <th>URL</th>
+                            <th style="width:90px;">类型</th>
+                            <th style="width:110px;">耗时</th>
+                            <th style="width:90px;">大小</th>
+                        </tr>
+                    </thead>
+                    <tbody id="entryBody"></tbody>
+                </table>
+            </div>
+
+            <!-- 详情面板 -->
+            <div class="detail-panel" id="detailPanel" style="display:none;">
+                <div class="detail-tabs">
+                    <div class="detail-tab active" data-tab="overview" onclick="switchTab('overview')"><i class="ri-dashboard-line"></i> 概述</div>
+                    <div class="detail-tab" data-tab="request" onclick="switchTab('request')"><i class="ri-arrow-right-up-line"></i> 请求头</div>
+                    <div class="detail-tab" data-tab="response" onclick="switchTab('response')"><i class="ri-arrow-down-left-line"></i> 响应头</div>
+                    <div class="detail-tab" data-tab="requestbody" onclick="switchTab('requestbody')"><i class="ri-upload-2-line"></i> 请求体</div>
+                    <div class="detail-tab" data-tab="responsebody" onclick="switchTab('responsebody')"><i class="ri-download-2-line"></i> 响应体</div>
+                    <div class="detail-tab" data-tab="timing" onclick="switchTab('timing')"><i class="ri-timer-line"></i> 耗时</div>
+                </div>
+                <div class="detail-body" id="detailBody">
+                    <div class="empty-state">
+                        <i class="ri-mouse-line"></i>
+                        <p>点击上方请求行查看详情</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ——— 数据模型 ———
+        let files = [];          // { id, name, path, raw, entries, openedAt }
+        let activeId = null;
+        let selectedEntryId = null;
+        let currentDetailTab = 'request';
+        // 时间瀑布阶段定义（key / 中文名 / 颜色）
+        const WF_PHASES = [
+            { key: 'blocked', name: '阻塞', color: '#64748b' },
+            { key: 'dns', name: 'DNS', color: '#06b6d4' },
+            { key: 'connect', name: '连接', color: '#3b82f6' },
+            { key: 'ssl', name: 'SSL', color: '#8b5cf6' },
+            { key: 'send', name: '发送', color: '#ec4899' },
+            { key: 'wait', name: '等待', color: '#f59e0b' },
+            { key: 'receive', name: '接收', color: '#10b981' }
+        ];
+
+        // ——— 样例 HAR 数据 ———
+        const sampleHar = {
+            log: {
+                version: "1.2",
+                creator: { name: "Chrome", version: "120.0" },
+                entries: [
+                    {
+                        _index: 0,
+                        startedDateTime: "2026-08-27T09:12:00.000Z",
+                        time: 128,
+                        request: {
+                            method: "GET", url: "https://api.example.com/users?page=1&size=20",
+                            httpVersion: "HTTP/1.1", cookies: [], headersSize: 210, bodySize: 0,
+                            headers: [
+                                { name: "Host", value: "api.example.com" },
+                                { name: "Authorization", value: "Bearer eyJhbGciOi..." },
+                                { name: "Accept", value: "application/json" }
+                            ],
+                            queryString: [
+                                { name: "page", value: "1" },
+                                { name: "size", value: "20" }
+                            ]
+                        },
+                        response: {
+                            status: 200, statusText: "OK", httpVersion: "HTTP/1.1", headersSize: 320, bodySize: 512,
+                            redirectURL: "", cookies: [], headers: [
+                                { name: "content-type", value: "application/json; charset=utf-8" },
+                                { name: "cache-control", value: "no-cache" }
+                            ],
+                            content: { size: 512, mimeType: "application/json", text: JSON.stringify({ code: 0, data: { list: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }], total: 2 }, msg: "success" }, null, 2) }
+                        },
+                        cache: {}, timings: { blocked: 12, dns: 8, connect: 40, send: 2, wait: 54, receive: 12, ssl: 20 }
+                    },
+                    {
+                        _index: 1,
+                        startedDateTime: "2026-08-27T09:12:00.560Z",
+                        time: 210,
+                        request: {
+                            method: "POST", url: "https://api.example.com/auth/login",
+                            httpVersion: "HTTP/1.1", cookies: [], headersSize: 260, bodySize: 42,
+                            headers: [
+                                { name: "content-type", value: "application/json" },
+                                { name: "user-agent", value: "DevToolbox/1.0" }
+                            ],
+                            queryString: [],
+                            postData: { mimeType: "application/json", text: JSON.stringify({ username: "admin", password: "***" }) }
+                        },
+                        response: {
+                            status: 201, statusText: "Created", httpVersion: "HTTP/1.1", headersSize: 280, bodySize: 96,
+                            redirectURL: "", cookies: [], headers: [{ name: "content-type", value: "application/json" }],
+                            content: { size: 96, mimeType: "application/json", text: JSON.stringify({ token: "xxxx", expires: 7200 }) }
+                        },
+                        cache: {}, timings: { blocked: 5, dns: 0, connect: 30, send: 5, wait: 120, receive: 50, ssl: 12 }
+                    },
+                    {
+                        _index: 2,
+                        startedDateTime: "2026-08-27T09:13:02.100Z",
+                        time: 55,
+                        request: {
+                            method: "GET", url: "https://cdn.example.com/static/app.main.js",
+                            httpVersion: "HTTP/1.1", cookies: [], headersSize: 180, bodySize: 0,
+                            headers: [{ name: "accept-encoding", value: "gzip, deflate, br" }], queryString: []
+                        },
+                        response: {
+                            status: 302, statusText: "Found", httpVersion: "HTTP/1.1", headersSize: 200, bodySize: 0,
+                            redirectURL: "https://cdn.example.com/static/app.main.1a2b3c.js", cookies: [],
+                            headers: [{ name: "location", value: "https://cdn.example.com/static/app.main.1a2b3c.js" }],
+                            content: { size: 0, mimeType: "" }
+                        },
+                        cache: {}, timings: { blocked: 0, dns: 10, connect: 25, send: 1, wait: 12, receive: 7, ssl: 0 }
+                    },
+                    {
+                        _index: 3,
+                        startedDateTime: "2026-08-27T09:14:44.900Z",
+                        time: 342,
+                        request: {
+                            method: "GET", url: "https://api.example.com/orders/4040",
+                            httpVersion: "HTTP/1.1", cookies: [], headersSize: 190, bodySize: 0,
+                            headers: [{ name: "Accept", value: "application/json" }], queryString: []
+                        },
+                        response: {
+                            status: 404, statusText: "Not Found", httpVersion: "HTTP/1.1", headersSize: 190, bodySize: 45,
+                            redirectURL: "", cookies: [], headers: [{ name: "content-type", value: "application/json" }],
+                            content: { size: 45, mimeType: "application/json", text: '{"error":"order not found"}' }
+                        },
+                        cache: {}, timings: { blocked: 40, dns: 12, connect: 90, send: 3, wait: 150, receive: 47, ssl: 30 }
+                    },
+                    {
+                        _index: 4,
+                        startedDateTime: "2026-08-27T09:15:01.200Z",
+                        time: 160,
+                        request: {
+                            method: "DELETE", url: "https://api.example.com/users/7",
+                            httpVersion: "HTTP/1.1", cookies: [], headersSize: 200, bodySize: 0,
+                            headers: [{ name: "Authorization", value: "Bearer eyJhbGciOi..." }], queryString: []
+                        },
+                        response: {
+                            status: 500, statusText: "Internal Server Error", httpVersion: "HTTP/1.1", headersSize: 200, bodySize: 60,
+                            redirectURL: "", cookies: [], headers: [{ name: "content-type", value: "application/json" }],
+                            content: { size: 60, mimeType: "application/json", text: '{"error":"internal server error","trace":"..."}' }
+                        },
+                        cache: {}, timings: { blocked: 2, dns: 5, connect: 20, send: 8, wait: 100, receive: 25, ssl: 0 }
+                    }
+                ],
+                pages: []
+            }
+        };
+
+        // ——— 工具函数 ———
+        function generateId() {
+            return 'har_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+        function statusClass(code) {
+            if (code >= 200 && code < 300) return 'status-2xx';
+            if (code >= 300 && code < 400) return 'status-3xx';
+            if (code >= 400 && code < 500) return 'status-4xx';
+            if (code >= 500) return 'status-5xx';
+            return 'status-2xx';
+        }
+        function methodClass(m) { return 'method-' + (m || 'GET').toUpperCase(); }
+        function fmtBytes(n) {
+            if (n == null || isNaN(n) || n < 0) return '-';
+            const u = ['B', 'KB', 'MB', 'GB'];
+            let i = 0, v = n;
+            while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+            return (n === 0 ? '0 B' : v.toFixed(1) + ' ' + u[i]);
+        }
+        function extFromMime(mime) {
+            if (!mime) return '';
+            if (mime.includes('json')) return 'JSON';
+            if (mime.includes('html')) return 'HTML';
+            if (mime.includes('javascript') || mime.includes('ecmascript')) return 'JS';
+            if (mime.includes('css')) return 'CSS';
+            if (mime.includes('image/')) return 'IMG';
+            return mime.split('/')[1] ? mime.split('/')[1].toUpperCase() : '';
+        }
+
+        // 拆分 URL 为域名 + 路径(含 query)
+        function splitUrl(url) {
+            try {
+                const u = new URL(url);
+                return { domain: u.host, path: u.pathname + u.search };
+            } catch (e) {
+                return { domain: '', path: url || '' };
+            }
+        }
+
+        // ——— 文件管理 ———
+        function addFile(name, raw, path) {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            const entries = (parsed && parsed.log && parsed.log.entries) || [];
+            const f = { id: generateId(), name: name, path: path || name, raw: parsed, entries: entries, openedAt: Date.now() };
+            files.push(f);
+            activeId = f.id;
+            renderFileList();
+            loadFile(activeId);
+            showToast('已打开「' + name + '」，共 ' + entries.length + ' 条请求', 'success');
+        }
+
+        function removeFile(id) {
+            if (files.length <= 1) { showToast('至少保留一个文件', 'error'); return; }
+            files = files.filter(f => f.id !== id);
+            if (activeId === id) activeId = files[0].id;
+            renderFileList();
+            loadFile(activeId);
+        }
+
+        function switchFile(id) {
+            if (activeId === id) return;
+            activeId = id;
+            renderFileList();
+            loadFile(id);
+        }
+
+        function exportActive() {
+            const f = files.find(x => x.id === activeId);
+            if (!f) return;
+            const blob = new Blob([JSON.stringify(f.raw)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = f.name; a.click();
+            URL.revokeObjectURL(url);
+            showToast('已导出「' + f.name + '」', 'success');
+        }
+
+        function renderFileList() {
+            const list = document.getElementById('fileList');
+            list.innerHTML = files.map(f => {
+                const isActive = f.id === activeId;
+                const minutes = Math.max(1, Math.round((Date.now() - f.openedAt) / 60000));
+                return `
+                    <div class="file-item ${isActive ? 'active' : ''}" data-id="${f.id}" onclick="switchFile('${f.id}')">
+                        <div class="file-icon"><i class="ri-file-chart-line"></i></div>
+                        <div class="file-info">
+                            <div class="file-name">${escapeHtml(f.name)}</div>
+                            <div class="file-meta">${f.entries.length} 个请求 · ${minutes} 分钟前</div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="btn-remove" onclick="removeFile('${f.id}'); event.stopPropagation();" title="移除"><i class="ri-close-line"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ——— 加载激活文件 ———
+        function loadFile(id) {
+            const f = files.find(x => x.id === id);
+            if (!f) return;
+            document.getElementById('titleText').textContent = f.name;
+            document.getElementById('currentMeta').textContent = '路径: ' + f.path;
+            document.getElementById('toolbar').style.display = 'flex';
+            document.getElementById('summaryRow').style.display = 'grid';
+            document.getElementById('countBadge').style.display = 'inline-flex';
+            document.getElementById('countText').textContent = f.entries.length + ' 条请求';
+            selectedEntryId = null;
+            renderSummary(f);
+            renderTable();
+            // 重置详情
+            document.getElementById('detailPanel').style.display = 'none';
+            document.getElementById('detailBody').innerHTML = '<div class="empty-state"><i class="ri-mouse-line"></i><p>点击上方请求行查看详情</p></div>';
+        }
+
+        function renderSummary(f) {
+            const t = f.entries;
+            const c = (lo, hi) => t.filter(e => e.response.status >= lo && e.response.status < hi).length;
+            const times = t.map(e => e.time).filter(v => typeof v === 'number');
+            const sizes = t.map(e => (e.response.bodySize || 0) + (e.response.headersSize || 0));
+            document.getElementById('statTotal').textContent = t.length;
+            document.getElementById('stat2xx').textContent = c(200, 300);
+            document.getElementById('stat3xx').textContent = c(300, 400);
+            document.getElementById('stat4xx').textContent = c(400, 500);
+            document.getElementById('stat5xx').textContent = c(500, 600);
+            document.getElementById('statTime').textContent = times.length ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) + ' ms' : '-';
+            document.getElementById('statSize').textContent = sizes.length ? fmtBytes(sizes.reduce((a, b) => a + b, 0)) : '-';
+        }
+
+        // ——— 表格渲染 + 搜索过滤 ———
+        // 收集可被深度搜索检索的文本片段
+        function deepFields(e) {
+            const reqH = (e.request.headers || []).map(h => h.name + ':' + h.value).join('\n');
+            const resH = (e.response.headers || []).map(h => h.name + ':' + h.value).join('\n');
+            const qs = (e.request.queryString || []).map(q => q.name + '=' + q.value).join('\n') + '\n' + reqH + '\n' + resH;
+            const body = [
+                (e.request.postData && e.request.postData.text) || '',
+                (e.response.content && e.response.content.text) || ''
+            ].join('\n');
+            return (qs + '\n' + body).toLowerCase();
+        }
+
+        function filteredEntries(f) {
+            const q = document.getElementById('searchInput').value.trim().toLowerCase();
+            const sf = document.getElementById('statusFilter').value;
+            const deep = document.getElementById('deepSearch').checked;
+            return f.entries.filter(e => {
+                if (sf !== 'all') {
+                    const c = Math.floor((e.response.status || 0) / 100);
+                    if (('' + c) + 'xx' !== sf) return false;
+                }
+                if (!q) return true;
+                const url = e.request.url.toLowerCase();
+                const method = e.request.method.toLowerCase();
+                const st = String(e.response.status);
+                if (url.includes(q) || method.includes(q) || st.includes(q)) return true;
+                if (deep && deepFields(e).includes(q)) return true;
+                return false;
+            });
+        }
+
+        function renderTable() {
+            const f = files.find(x => x.id === activeId);
+            if (!f) return;
+            const list = filteredEntries(f);
+            const table = document.getElementById('entryTable');
+            const body = document.getElementById('entryBody');
+            const empty = document.getElementById('emptyState');
+
+            if (f.entries.length === 0) {
+                empty.style.display = 'flex';
+                empty.innerHTML = '<i class="ri-file-chart-line"></i><p>该文件没有请求记录</p>';
+                table.style.display = 'none';
+                return;
+            }
+            if (list.length === 0) {
+                empty.style.display = 'flex';
+                empty.innerHTML = '<i class="ri-search-line"></i><p>没有匹配的请求</p>';
+                table.style.display = 'none';
+                return;
+            }
+            empty.style.display = 'none';
+            table.style.display = 'table';
+            const maxTime = Math.max(1, ...list.map(e => (typeof e.time === 'number' ? e.time : 0)));
+            body.innerHTML = list.map((e, i) => {
+                const status = e.response.status;
+                const sel = e._id === selectedEntryId ? 'active' : '';
+                const timeVal = typeof e.time === 'number' ? e.time : NaN;
+                const pct = Math.max(2, Math.round((timeVal || 0) / maxTime * 100));
+                const timeCell = isNaN(timeVal)
+                    ? '<span class="muted">-</span>'
+                    : `<div class="time-bar"><div class="track"><div class="fill" style="width:${pct}%"></div></div><span class="time-val">${timeVal} ms</span></div>`;
+                const { domain, path } = splitUrl(e.request.url);
+                return `
+                    <tr class="${sel}" data-eid="${e._id}" onclick="selectEntry('${e._id}')">
+                        <td class="muted">${i + 1}</td>
+                        <td><span class="status-dot ${statusClass(status)}">${escapeHtml(status)}</span></td>
+                        <td><span class="method-tag ${methodClass(e.request.method)}">${escapeHtml(e.request.method)}</span></td>
+                        <td class="domain-cell" title="${escapeHtml(e.request.url)}">${domain ? escapeHtml(domain) : '<span class="muted">-</span>'}</td>
+                        <td class="url-cell" title="${escapeHtml(e.request.url)}">${escapeHtml(path)}</td>
+                        <td>${escapeHtml(extFromMime(e.response.content && e.response.content.mimeType))}</td>
+                        <td>${timeCell}</td>
+                        <td class="muted">${fmtBytes((e.response.bodySize || 0) + (e.response.headersSize || 0))}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ——— 详情 ———
+        function selectEntry(eid) {
+            selectedEntryId = eid;
+            currentDetailTab = 'overview';
+            document.getElementById('detailPanel').style.display = 'flex';
+            // 高亮行
+            document.querySelectorAll('#entryBody tr').forEach(tr => tr.classList.remove('active'));
+            const row = document.querySelector(`#entryBody tr[data-eid="${eid}"]`);
+            if (row) row.classList.add('active');
+            syncTabUI();
+            renderDetail(eid);
+        }
+
+        // ——— 时间瀑布（耗时 Tab 内容） ———
+        function waterfallHtml(e) {
+            const t = e.timings || {};
+            const total = typeof e.time === 'number' ? e.time : 0;
+            const phases = WF_PHASES.map(p => ({ name: p.name, color: p.color, v: t[p.key] }));
+            const valid = phases.map(p => typeof p.v === 'number' && p.v >= 0 ? p.v : 0);
+            const sum = valid.reduce((a, b) => a + b, 0);
+
+            const segs = sum <= 0
+                ? '<div class="wf-seg" style="width:100%;background:var(--bg-input)"></div>'
+                : phases.map((p, i) => {
+                    const w = Math.round(valid[i] / sum * 100);
+                    return w > 0 ? `<div class="wf-seg" style="width:${w}%;background:${p.color}" title="${p.name} ${valid[i]}ms"></div>` : '';
+                }).join('');
+            const legend = phases.map((p, i) =>
+                `<span><span class="dot" style="background:${p.color}"></span>${p.name} ${valid[i]}ms</span>`
+            ).join('');
+
+            return `<div class="waterfall">
+                    <div class="wf-total">
+                        <span title="${escapeHtml(e.request.url)}">${escapeHtml(e.request.method)} ${flush(e.request.url)}</span>
+                        <span class="strong">总耗时 ${total} ms</span>
+                    </div>
+                    <div class="wf-track">${segs}</div>
+                    <div class="wf-legend" id="wfLegend">${legend}</div>
+                </div>
+                <table class="kv-table">
+                    ${WF_PHASES.map((p, i) => `<tr><td>${p.name}</td><td>${valid[i]} ms</td></tr>`).join('')}
+                    <tr><td>总耗时</td><td>${total} ms</td></tr>
+                </table>`;
+        }
+
+        function flush(text) {
+            if (!text) return '';
+            if (text.length <= 72) return escapeHtml(text);
+            const front = escapeHtml(text.slice(0, 40));
+            const back = escapeHtml(text.slice(-28));
+            return front + '<span class="muted">…</span>' + back;
+        }
+
+        function switchTab(tab) {
+            currentDetailTab = tab;
+            syncTabUI();
+            if (selectedEntryId) renderDetail(selectedEntryId);
+        }
+
+        function syncTabUI() {
+            document.querySelectorAll('.detail-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === currentDetailTab);
+            });
+        }
+
+        function findEntry(eid) {
+            const f = files.find(x => x.id === activeId);
+            return f && f.entries.find(e => e._id === eid);
+        }
+
+        function kvRows(list) {
+            if (!list || !list.length) return '<tr><td colspan="2" class="muted">无</td></tr>';
+            return list.map(h => `<tr><td>${escapeHtml(h.name)}</td><td>${escapeHtml(h.value)}</td></tr>`).join('');
+        }
+
+        function renderDetail(eid) {
+            const e = findEntry(eid);
+            if (!e) return;
+            const body = document.getElementById('detailBody');
+            const req = e.request, res = e.response;
+
+            // 概述
+            if (currentDetailTab === 'overview') {
+                body.innerHTML = `
+                    <div class="section-block">
+                        <div class="section-title">概览</div>
+                        <table class="kv-table">
+                            <tr><td>URL</td><td>${escapeHtml(req.url)}</td></tr>
+                            <tr><td>方法 / 协议</td><td>${escapeHtml(req.method)} · ${escapeHtml(req.httpVersion || '-')}</td></tr>
+                            <tr><td>状态</td><td>${escapeHtml(res.status)} ${escapeHtml(res.statusText || '')}</td></tr>
+                            <tr><td>总耗时</td><td>${typeof e.time === 'number' ? e.time + ' ms' : '-'}</td></tr>
+                            <tr><td>MIME 类型</td><td>${escapeHtml((res.content && res.content.mimeType) || '-')}</td></tr>
+                            <tr><td>响应大小</td><td>${fmtBytes((res.bodySize || 0) + (res.headersSize || 0))}</td></tr>
+                            <tr><td>开始时间</td><td>${escapeHtml(e.startedDateTime || '-')}</td></tr>
+                        </table>
+                    </div>
+                `;
+            }
+            // 请求头
+            else if (currentDetailTab === 'request') {
+                let html = `<div class="section-block">
+                    <div class="section-title">通用</div>
+                    <table class="kv-table">
+                        <tr><td>URL</td><td>${escapeHtml(req.url)}</td></tr>
+                        <tr><td>方法</td><td>${escapeHtml(req.method)} · ${escapeHtml(req.httpVersion || '-')}</td></tr>
+                    </table>
+                </div>`;
+                html += `<div class="section-block">
+                    <div class="section-title">Query 参数 (${req.queryString ? req.queryString.length : 0})</div>
+                    <table class="kv-table">${kvRows(req.queryString)}</table>
+                </div>`;
+                html += `<div class="section-block">
+                    <div class="section-title">请求头 (${req.headers ? req.headers.length : 0})</div>
+                    <table class="kv-table">${kvRows(req.headers)}</table>
+                </div>`;
+                body.innerHTML = html;
+            }
+            // 响应头
+            else if (currentDetailTab === 'response') {
+                body.innerHTML = `
+                    <div class="section-block">
+                        <div class="section-title">响应</div>
+                        <table class="kv-table">
+                            <tr><td>状态</td><td>${escapeHtml(res.status)} ${escapeHtml(res.statusText || '')}</td></tr>
+                            <tr><td>HTTP 版本</td><td>${escapeHtml(res.httpVersion || '-')}</td></tr>
+                            <tr><td>重定向</td><td>${escapeHtml(res.redirectURL || '-')}</td></tr>
+                            <tr><td>响应头大小</td><td>${fmtBytes(res.headersSize || 0)}</td></tr>
+                        </table>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-title">响应头 (${res.headers ? res.headers.length : 0})</div>
+                        <table class="kv-table">${kvRows(res.headers)}</table>
+                    </div>
+                `;
+            }
+            // 请求体
+            else if (currentDetailTab === 'requestbody') {
+                const pd = req.postData;
+                if (pd && pd.text != null && pd.text !== '') {
+                    body.innerHTML = `<div class="body-toolbar">
+                        <span class="mime">${escapeHtml(pd.mimeType || '')}</span>
+                        <span class="spacer"></span>
+                        <button class="mini-btn" onclick="copyBody('requestbody')"><i class="ri-file-copy-line"></i> 复制</button>
+                    </div>
+                    <div class="code-body">${syntaxHighlightQR(pd.text)}</div>`;
+                } else {
+                    body.innerHTML = '<div class="empty-state"><i class="ri-upload-2-line"></i><p>该请求无请求体</p></div>';
+                }
+            }
+            // 响应体
+            else if (currentDetailTab === 'responsebody') {
+                const content = res.content || {};
+                if (content.text != null && content.text !== '') {
+                    const mime = content.mimeType || '';
+                    body.innerHTML = `<div class="body-toolbar">
+                        <span class="mime">${escapeHtml(mime)}</span>
+                        <span class="spacer"></span>
+                        <button class="mini-btn" onclick="copyBody('responsebody')"><i class="ri-file-copy-line"></i> 复制</button>
+                    </div>
+                    <div class="code-body">${mime.includes('json') ? syntaxHighlight(prettyJson(content.text)) : escapeHtml(content.text)}</div>`;
+                } else {
+                    body.innerHTML = '<div class="empty-state"><i class="ri-download-2-line"></i><p>无响应体</p></div>';
+                }
+            }
+            // 耗时（时间瀑布进度条）
+            else if (currentDetailTab === 'timing') {
+                body.innerHTML = waterfallHtml(e);
+            }
+        }
+
+        async function copyBody(which) {
+            const e = findEntry(selectedEntryId);
+            if (!e) return;
+            const text = which === 'responsebody'
+                ? (e.response.content && e.response.content.text)
+                : (e.request.postData && e.request.postData.text);
+            if (!text) { showToast('没有可复制的内容', 'error'); return; }
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('已复制到剪贴板', 'success');
+            } catch (e2) {
+                showToast('复制失败', 'error');
+            }
+        }
+
+        // ——— 文件导入（真实读取） ———
+        function openHarFiles(fileList, single) {
+            const filesArr = Array.from(fileList);
+            if (!filesArr.length) return;
+            filesArr.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        JSON.parse(reader.result);
+                        addFile(file.name, reader.result, file.name);
+                    } catch (e) {
+                        showToast('文件格式错误: ' + file.name, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            openHarFiles(e.target.files);
+            this.value = '';
+        });
+
+        // ——— JSON 语法高亮 ———
+        function prettyJson(text) {
+            try { return JSON.stringify(JSON.parse(text), null, 2); }
+            catch (e) { return text; }
+        }
+        function highlight(text) {
+            if (!text) return '';
+            text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return text.replace(
+                /("([^"\\]|\\.)*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?|[{}[\],]|\s+)/g,
+                function (m) {
+                    let cls = 'json-other';
+                    if (/^"/.test(m)) cls = /:$/.test(m) ? 'json-key' : 'json-string';
+                    else if (/true|false/.test(m)) cls = 'json-boolean';
+                    else if (/null/.test(m)) cls = 'json-null';
+                    else if (/^-?\d/.test(m)) cls = 'json-number';
+                    else if (/[{}[\]]/.test(m)) cls = 'json-brace';
+                    else if (/,/.test(m)) cls = 'json-comma';
+                    return '<span class="' + cls + '">' + m + '</span>';
+                }
+            );
+        }
+        function syntaxHighlight(text) { return highlight(text); }
+        function syntaxHighlightQR(text) {
+            // 若内容本身是 JSON 则高亮，否则纯文本转义
+            try { JSON.parse(text); return highlight(prettyJson(text)); }
+            catch (e) { return escapeHtml(text); }
+        }
+
+        // ——— Toast ———
+        function showToast(message, type) {
+            const t = document.getElementById('toast');
+            t.className = 'toast ' + (type === 'error' ? 'error' : '');
+            t.innerHTML = (type === 'error' ? '<i class="ri-close-circle-line"></i>' : '<i class="ri-check-line"></i>') + escapeHtml(message);
+            t.classList.add('show');
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        // ——— 初始化 ———
+        (function init() {
+            // 为样例条目添加游标 id
+            sampleHar.log.entries.forEach(e => e._id = generateId());
+            addFile('示例-订单接口.har', sampleHar);
+        })();
+    </script>
+</body>
+</html>

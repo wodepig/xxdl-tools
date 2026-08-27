@@ -2,6 +2,7 @@ import { registerYingdaoStudyHandlers } from './yingdao-study'
 import { registerWatermarkHandlers } from './watermark'
 import { registerImageHostingHandlers } from './image-hosting'
 import { registerJsonFormatterHandlers } from './json-formatter'
+import { registerHarViewerHandlers } from './har-viewer'
 
 /**
  * 注册所有工具的 IPC handler
@@ -12,4 +13,5 @@ export function registerToolHandlers(): void {
   registerWatermarkHandlers()
   registerImageHostingHandlers()
   registerJsonFormatterHandlers()
+  registerHarViewerHandlers()
 }

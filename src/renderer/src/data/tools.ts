@@ -23,6 +23,16 @@ export const tools: ToolDefinition[] = [
     tags: ['开发']
   },
   {
+    id: 'har-viewer',
+    name: 'HAR 查看',
+    description: '打开并解析 HAR 文件，多文件同时查看请求/响应详情与耗时瀑布',
+    icon: 'i-heroicons-wifi',
+    category: ToolCategory.Development,
+    accentColor: '#06b6d4',
+    rating: 4.8,
+    tags: ['开发']
+  },
+  {
     id: 'base64',
     name: 'Base64 编解码',
     description: 'Base64 编码/解码，支持图片转 Base64',
