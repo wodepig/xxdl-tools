@@ -231,7 +231,7 @@ onUnmounted(() => {
         borderColor: 'var(--border)',
         color: 'var(--text-secondary)'
       }">
-        <p>筱筱的工具箱 v1.0.3</p>
+        <p>筱筱的工具箱 v1.0.4</p>
         <p class="mt-2">一个全能的开发者工具箱</p>
 
         <!-- 检查更新 -->
