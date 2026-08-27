@@ -7,6 +7,7 @@ import { useToolsStore } from '../../stores/toolsStore'
 import AppTopBar from './AppTopBar.vue'
 import AppSidebar from './AppSidebar.vue'
 import UpdateDialog from './UpdateDialog.vue'
+import DataDirSetupDialog from './DataDirSetupDialog.vue'
 
 console.log('[AppLayout.vue] Script setup executing')
 
@@ -14,6 +15,10 @@ const router = useRouter()
 const settingsStore = useSettingsStore()
 const toolsStore = useToolsStore()
 const { activeCategory, setCategory } = toolsStore
+
+// 数据目录首次配置引导
+const showDataSetup = ref(false)
+const defaultDataDir = ref('')
 
 console.log('[AppLayout.vue] Stores initialized')
 
@@ -58,7 +63,22 @@ onMounted(async () => {
   }
   applyTheme(settingsStore.theme.value)
   console.log('[AppLayout.vue] onMounted completed, theme applied:', settingsStore.theme.value)
+
+  // 首次使用：检测数据目录是否已配置，未配置则弹出引导
+  try {
+    const configured = await ipcClient.isDataDirConfigured()
+    if (!configured) {
+      defaultDataDir.value = await ipcClient.getDataDir()
+      showDataSetup.value = true
+    }
+  } catch (e) {
+    console.error('[AppLayout.vue] Failed to check data dir configured:', e)
+  }
 })
+
+function closeDataSetup(): void {
+  showDataSetup.value = false
+}
 
 // 监听主题变化
 watch(() => settingsStore.theme.value, (newTheme) => {
@@ -141,5 +161,11 @@ router.afterEach((to) => {
       </main>
     </div>
     <UpdateDialog />
+    <DataDirSetupDialog
+      :visible="showDataSetup"
+      :default-dir="defaultDataDir"
+      @close="closeDataSetup"
+      @configured="closeDataSetup"
+    />
   </div>
 </template>

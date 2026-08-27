@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllIpcHandlers } from './ipc'
+import { initDataRoot } from './utils/paths'
 import icon from '../../resources/icon.png?asset'
 
 // 必须在 app ready 之前设置：解决 Windows 下 GPU 磁盘缓存目录权限不足
@@ -47,6 +48,9 @@ function createWindow(): void {
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
+
+  // 初始化数据根目录（已配置则读取；未配置则用临时默认目录，由界面引导用户选择）
+  initDataRoot()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

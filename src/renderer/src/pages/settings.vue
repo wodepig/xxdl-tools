@@ -8,10 +8,20 @@ const settingsStore = useSettingsStore()
 const { tools } = useToolsStore()
 const clearingData = ref(false)
 const clearDone = ref(false)
+const dataDir = ref('')
+const changingDataDir = ref(false)
 
 const ipc = window.electron.ipcRenderer
 const checkingUpdate = ref(false)
 const updateMessage = ref('')
+const toast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(message: string, type: 'success' | 'error' = 'success'): void {
+  toast.value = { message, type }
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => (toast.value = null), 2500)
+}
 
 const themeItems = [
   { label: '暗色', value: 'dark' },
@@ -54,6 +64,31 @@ async function handleCheckUpdate(): Promise<void> {
   await ipcClient.checkForUpdates()
 }
 
+async function loadDataDir(): Promise<void> {
+  try {
+    dataDir.value = await ipcClient.getDataDir()
+  } catch (e) {
+    console.error('Failed to load data dir:', e)
+  }
+}
+
+async function handleChangeDataDir(): Promise<void> {
+  if (changingDataDir.value) return
+  changingDataDir.value = true
+  try {
+    const next = await ipcClient.chooseDataDir()
+    if (next) {
+      dataDir.value = next
+      showToast(`数据目录已切换为：${next}`, 'success')
+    }
+  } catch (e) {
+    console.error('Failed to choose data dir:', e)
+    showToast('切换数据目录失败', 'error')
+  } finally {
+    changingDataDir.value = false
+  }
+}
+
 // 只有手动点击检查更新时，才展示结果提示
 function applyUpdateResult(
   status: 'latest' | 'available' | 'error',
@@ -71,12 +106,14 @@ function applyUpdateResult(
 }
 
 onMounted(() => {
+  loadDataDir()
   ipcClient.onUpdateNotAvailable(() => applyUpdateResult('latest'))
   ipcClient.onUpdateAvailable((info) => applyUpdateResult('available', info.version))
   ipcClient.onUpdateError(() => applyUpdateResult('error'))
 })
 
 onUnmounted(() => {
+  if (toastTimer) clearTimeout(toastTimer)
   ipc.removeAllListeners('update:not-available')
   ipc.removeAllListeners('update:available')
   ipc.removeAllListeners('update:error')
@@ -110,6 +147,44 @@ onUnmounted(() => {
             @update:model-value="saveTheme"
           />
         </div>
+      </div>
+    </section>
+
+    <!-- 数据存储目录 -->
+    <section class="mb-8">
+      <h2 class="text-base font-semibold mb-4 flex items-center gap-2" :style="{ color: 'var(--text-primary)' }">
+        <UIcon name="i-heroicons-folder" class="w-5 h-5" />
+        数据存储目录
+      </h2>
+      <div class="rounded-xl p-5 border" :style="{
+        backgroundColor: 'var(--bg-card)',
+        borderColor: 'var(--border)'
+      }">
+        <p class="text-sm font-medium mb-1" :style="{ color: 'var(--text-primary)' }">当前数据目录</p>
+        <p class="text-xs mb-1" :style="{ color: 'var(--text-secondary)' }">
+          应用所有数据（工具记录、设置等）保存在该目录下，升级或重装不会丢失
+        </p>
+        <div
+          class="flex items-center gap-2 mt-2 mb-4 rounded-lg border px-3 py-2 font-mono text-[13px] break-all"
+          :style="{
+            borderColor: 'var(--border)',
+            backgroundColor: 'var(--bg-base)',
+            color: 'var(--text-primary)'
+          }"
+        >
+          <UIcon name="i-heroicons-folder-open" class="w-4 h-4 shrink-0" style="color: var(--text-muted)" />
+          {{ dataDir || '…' }}
+        </div>
+        <UButton
+          icon="i-heroicons-arrow-path"
+          color="primary"
+          variant="outline"
+          :loading="changingDataDir"
+          :disabled="changingDataDir"
+          @click="handleChangeDataDir"
+        >
+          重新选择数据目录
+        </UButton>
       </div>
     </section>
 
@@ -182,5 +257,19 @@ onUnmounted(() => {
     <UButton color="error" variant="outline" @click="resetSettings">
       重置所有设置
     </UButton>
+
+    <!-- Toast -->
+    <div
+      v-if="toast"
+      class="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-[13px] shadow-xl"
+      :style="{
+        borderColor: toast.type === 'error' ? '#ef4444' : '#10b981',
+        backgroundColor: 'var(--bg-card)',
+        color: toast.type === 'error' ? '#ef4444' : '#10b981'
+      }"
+    >
+      <UIcon :name="toast.type === 'error' ? 'i-heroicons-x-circle' : 'i-heroicons-check-circle'" size="16" />
+      {{ toast.message }}
+    </div>
   </div>
 </template>

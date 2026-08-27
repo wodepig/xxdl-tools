@@ -33,6 +33,11 @@ export const ipcClient = {
   setSettings: (settings: Partial<AppSettings>): Promise<void> =>
     ipc.invoke('settings:set', settings),
 
+  // 数据目录
+  getDataDir: (): Promise<string> => ipc.invoke('storage:get-data-dir'),
+  isDataDirConfigured: (): Promise<boolean> => ipc.invoke('storage:is-data-configured'),
+  chooseDataDir: (): Promise<string | null> => ipc.invoke('storage:choose-data-dir'),
+
   // 工具数据存储
   getToolData: <T = Record<string, unknown>>(toolId: string): Promise<T> =>
     ipc.invoke('data:get', toolId),
