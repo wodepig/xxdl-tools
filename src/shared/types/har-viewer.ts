@@ -60,8 +60,12 @@ export interface HarTimings {
 /** 单条请求记录（渲染进程运行时结构，包含游标 id） */
 export interface HarEntry {
   _id: string
+  /** 对应原始 HAR log.entries 中的下标（编辑保存时用于回写） */
+  _rawIndex?: number
   startedDateTime?: string
   time?: number
+  /** Chrome 导出的 _resourceType（xhr/fetch/document/script 等），可能不存在 */
+  resourceType?: string
   request: HarRequest
   response: HarResponse
   timings?: HarTimings
@@ -74,6 +78,10 @@ export interface HarFile {
   path: string
   entries: HarEntry[]
   openedAt: number
+  /** 原始 HAR JSON 根对象（编辑保存时回写用） */
+  raw?: unknown
+  /** 是否可写回源文件（示例文件为 false） */
+  writable?: boolean
 }
 
 /** 会话元信息（持久化，不含原始内容，避免 HAR 体积过大） */

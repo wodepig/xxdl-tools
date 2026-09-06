@@ -1,20 +1,7 @@
 import { ipcMain } from 'electron'
 import { request as httpsRequest } from 'https'
 import { request as httpRequest } from 'http'
-
-export interface HttpRequestParams {
-  url: string
-  method: string
-  headers?: Record<string, string>
-  body?: string
-}
-
-export interface HttpResponse {
-  statusCode: number
-  statusMessage: string
-  headers: Record<string, string>
-  body: string
-}
+import type { HttpRequestParams, HttpResponse } from '../../shared/types/yingdao-study'
 
 export function registerYingdaoStudyHandlers(): void {
   ipcMain.handle('yingdao-study:send-request', async (

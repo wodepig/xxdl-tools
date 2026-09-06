@@ -18,7 +18,7 @@
 
 - [ ] Task 5: 创建工具页面
   - 新建 `pages/tools/har-viewer.vue`
-  - 布局：HAR 文件会话面板（打开 / 切换 / 移除）+ 工具栏（搜索 / 状态过滤 / 深度搜索 / 导出）+ 汇总概览 + 请求表格 + 详情面板
+  - 布局：HAR 文件会话面板（打开 / 切换 / 移除）+ 工具栏（搜索 / 状态过滤 / 类型过滤 / 深度搜索 / 导出）+ 汇总概览 + 请求表格 + 详情面板
 
 - [ ] Task 6: 实现多文件会话管理
   - 打开（多个）/ 切换 / 移除（至少保留一个）
@@ -26,7 +26,7 @@
   - 通过 `data:get/set('har-viewer')` 持久化元信息（不含原始 HAR 内容）
 
 - [ ] Task 7: 实现 HAR 解析与汇总概览
-  - 渲染进程 `parseHarFile(content)`：提取 `log.entries`，统计总数、2xx/3xx/4xx/5xx、平均耗时、传输大小
+  - 渲染进程 `parseHarFile(content)`：提取 `log.entries`，统计总数、2xx、总流量、总耗时、平均耗时；按 `_resourceType`/MIME/URL 后缀推断资源类型
   - 非法文件 / 缺少 `log.entries` 时显示错误 Toast
   - 汇总统计卡片渲染
 
@@ -35,7 +35,7 @@
   - 域名与 URL 拆分：`new URL(url)` 拆出 host 与 path+query
   - 状态码徽标按 2xx/3xx/4xx/5xx 着色，方法标签着色
   - 耗时段按当前列表最大耗时比例渲染进度条
-  - 搜索框按 URL/方法/状态模糊过滤，状态下拉过滤；空态展示
+  - 搜索框按 URL/方法/状态模糊过滤；状态下拉、类型下拉（文档/XHR-Fetch/脚本/样式/图片/媒体/字体/其他）过滤；空态展示
   - 「深度搜索」复选框：勾选后搜索扩展到请求体 / 响应体 / 请求头/响应头值 / Query 参数
   - 点击行选中进入详情
 
@@ -48,13 +48,22 @@
   - 请求体：JSON 转义后高亮或纯文本，可复制
   - 响应体：JSON 格式化 + 语法高亮，可复制
 
-- [ ] Task 10: TypeScript 检查验证
+- [ ] Task 10: 实现编辑与删除（写回源文件）
+  - 工具栏「导出」左侧新增「编辑」按钮，编辑态变为「保存」，另加「取消」
+  - 编辑态表格新增复选框列（表头全选当前筛选结果），行点击切换勾选；勾选后出现「删除 (N)」
+  - 删除仅修改内存工作副本（进入编辑时快照，取消可还原）；汇总卡片随之联动
+  - 主进程新增 `har-viewer:write-file`，client 新增 `writeFile`
+  - 保存时弹二次确认弹窗（删除条数 / 剩余条数 / 文件路径），确认后按 `_rawIndex` 过滤 `raw.log.entries` 覆盖写回；示例文件不可写回
+  - 切换/移除/打开文件时退出编辑模式
+
+- [ ] Task 11: TypeScript 检查验证
   - 主进程 `tsc --noEmit -p tsconfig.node.json` 零错误
   - 渲染进程 `vue-tsc --noEmit -p tsconfig.web.json` 零错误
 
 # Task Dependencies
-- Task 1 是前置依赖（类型被 Task 3、Task 6-9 使用）
+- Task 1 是前置依赖（类型被 Task 3、Task 6-10 使用）
 - Task 2 → Task 3 顺序依赖
 - Task 4、Task 5 可并行
 - Task 5 依赖 Task 3、Task 4 完成后实现页面（Task 6-9 属于页面内部，Task 7/8/9 可并行）
-- Task 10 是最终验证
+- Task 10 依赖 Task 6-9 与 Task 2
+- Task 11 是最终验证

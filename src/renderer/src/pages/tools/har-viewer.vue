@@ -15,7 +15,14 @@ const files = ref<HarFile[]>([])
 const activeId = ref('')
 const search = ref('')
 const statusFilter = ref('all')
+const typeFilter = ref('all')
 const deepSearch = ref(false)
+// ——— 编辑模式 ———
+const editMode = ref(false)
+const checkedIds = ref<Set<string>>(new Set())
+let editSnapshot: HarEntry[] | null = null
+const showSaveConfirm = ref(false)
+const saving = ref(false)
 const currentTab = ref<'overview' | 'request' | 'response' | 'requestbody' | 'responsebody' | 'timing'>('overview')
 const selectedEntryId = ref<string | null>(null)
 const copied = ref(false)
@@ -92,17 +99,21 @@ function parseHar(content: string, filePath: string, name?: string): HarFile {
   const data: unknown = JSON.parse(content)
   const log = (data as { log?: { entries?: unknown[] } }).log
   const raw = Array.isArray(log?.entries) ? log.entries : []
-  const entries: HarEntry[] = raw.map((it) => normalizeEntry(it))
+  const entries: HarEntry[] = raw.map((it, idx) => normalizeEntry(it, idx))
+  // 仅绝对路径（真实打开的文件）可写回源文件；示例文件等为不可写
+  const writable = /^([a-zA-Z]:[\\/]|\/)/.test(filePath)
   return {
     id: generateId('har'),
     name: name || filePath.split(/[\\/]/).pop() || 'HAR',
     path: filePath,
     entries,
-    openedAt: Date.now()
+    openedAt: Date.now(),
+    raw: data,
+    writable
   }
 }
 
-function normalizeEntry(raw: unknown): HarEntry {
+function normalizeEntry(raw: unknown, rawIndex: number): HarEntry {
   const it = raw as Record<string, unknown>
   const request = (it.request || {}) as Record<string, unknown>
   const response = (it.response || {}) as Record<string, unknown>
@@ -110,8 +121,10 @@ function normalizeEntry(raw: unknown): HarEntry {
   const timings = (it.timings || {}) as Record<string, unknown>
   return {
     _id: generateId('e'),
+    _rawIndex: rawIndex,
     startedDateTime: typeof it.startedDateTime === 'string' ? it.startedDateTime : undefined,
     time: typeof it.time === 'number' ? it.time : undefined,
+    resourceType: typeof it._resourceType === 'string' ? it._resourceType : undefined,
     request: {
       method: String(request.method || 'GET'),
       url: String(request.url || ''),
@@ -195,6 +208,7 @@ async function openFiles(): Promise<void> {
   if (added > 0) {
     selectedEntryId.value = null
     currentTab.value = 'overview'
+    exitEditMode()
     persist()
     showToast(`已打开 ${added} 个文件`)
   }
@@ -210,6 +224,7 @@ function removeFile(id: string): void {
     activeId.value = files.value[0].id
     selectedEntryId.value = null
   }
+  exitEditMode()
   persist()
   showToast('文件已移除')
 }
@@ -219,7 +234,81 @@ function switchFile(id: string): void {
   activeId.value = id
   selectedEntryId.value = null
   currentTab.value = 'overview'
+  exitEditMode()
   persist()
+}
+
+// ——— 资源类型分类 ———
+type EntryResourceType =
+  | 'document'
+  | 'xhr'
+  | 'script'
+  | 'stylesheet'
+  | 'image'
+  | 'media'
+  | 'font'
+  | 'other'
+
+const resourceTypeOptions: { value: EntryResourceType | 'all'; label: string }[] = [
+  { value: 'all', label: '全部类型' },
+  { value: 'document', label: '文档' },
+  { value: 'xhr', label: 'XHR/Fetch' },
+  { value: 'script', label: '脚本' },
+  { value: 'stylesheet', label: '样式' },
+  { value: 'image', label: '图片' },
+  { value: 'media', label: '媒体' },
+  { value: 'font', label: '字体' },
+  { value: 'other', label: '其他' }
+]
+
+function resourceTypeOf(e: HarEntry): EntryResourceType {
+  // 优先使用 Chrome 导出的 _resourceType
+  switch ((e.resourceType || '').toLowerCase()) {
+    case 'xhr':
+    case 'fetch':
+      return 'xhr'
+    case 'document':
+      return 'document'
+    case 'script':
+      return 'script'
+    case 'stylesheet':
+      return 'stylesheet'
+    case 'image':
+      return 'image'
+    case 'media':
+      return 'media'
+    case 'font':
+      return 'font'
+  }
+
+  // 根据 MIME 推断
+  const mime = (e.response.content?.mimeType || '').toLowerCase().split(';')[0].trim()
+  if (mime.includes('text/html')) return 'document'
+  if (mime.includes('json') || mime.includes('xml')) return 'xhr'
+  if (mime.includes('javascript') || mime.includes('ecmascript')) return 'script'
+  if (mime.includes('text/css')) return 'stylesheet'
+  if (mime.startsWith('image/')) return 'image'
+  if (mime.startsWith('audio/') || mime.startsWith('video/')) return 'media'
+  if (mime.includes('font') || mime.includes('woff')) return 'font'
+
+  // 根据 URL 后缀兜底
+  try {
+    const path = new URL(e.request.url).pathname.toLowerCase()
+    if (/\.(html?|xhtml|asp|aspx|jsp|php)$/.test(path)) return 'document'
+    if (/\.(m?js|jsx|tsx?)(\?|$)/.test(path)) return 'script'
+    if (/\.css(\?|$)/.test(path)) return 'stylesheet'
+    if (/\.(png|jpe?g|gif|webp|svg|ico|bmp|avif)(\?|$)/.test(path)) return 'image'
+    if (/\.(mp4|webm|ogv|mkv|mov|mp3|wav|ogg|m4a|aac|flac)(\?|$)/.test(path)) return 'media'
+    if (/\.(woff2?|ttf|otf|eot)(\?|$)/.test(path)) return 'font'
+    if (/\.(json|xml)(\?|$)/.test(path)) return 'xhr'
+  } catch {
+    /* ignore */
+  }
+  return 'other'
+}
+
+function resourceTypeLabel(t: EntryResourceType): string {
+  return resourceTypeOptions.find((o) => o.value === t)?.label || '其他'
 }
 
 // ——— 表格计算 ———
@@ -228,11 +317,13 @@ const filteredEntries = computed<HarEntry[]>(() => {
   if (!f) return []
   const kw = search.value.trim().toLowerCase()
   const st = statusFilter.value
+  const tp = typeFilter.value
   return f.entries.filter((e) => {
     if (st !== 'all') {
       const first = String(e.response.status).charAt(0)
       if (st !== first || !first) return false
     }
+    if (tp !== 'all' && resourceTypeOf(e) !== tp) return false
     if (!kw) return true
     return entrySearchText(e).includes(kw)
   })
@@ -267,23 +358,29 @@ const maxTime = computed(() => {
 })
 
 const summary = computed(() => {
-  const f = activeFile.value
-  if (!f) return { total: 0, c2: 0, c3: 0, c4: 0, c5: 0, avg: 0, size: 0 }
-  let c2 = 0, c3 = 0, c4 = 0, c5 = 0, totalTime = 0, timeCount = 0, size = 0
-  for (const e of f.entries) {
+  // 统计口径：跟随当前筛选结果（状态 / 类型 / 关键字），与表格展示一致
+  const list = filteredEntries.value
+  let c2 = 0
+  let totalTime = 0
+  let timeCount = 0
+  let size = 0
+  for (const e of list) {
     const s = String(e.response.status)
     if (s.startsWith('2')) c2++
-    else if (s.startsWith('3')) c3++
-    else if (s.startsWith('4')) c4++
-    else if (s.startsWith('5')) c5++
     if (typeof e.time === 'number') {
       totalTime += e.time
       timeCount++
     }
     size += (e.response.bodySize || 0) + (e.response.headersSize || 0)
   }
-  return { total: f.entries.length, c2, c3, c4, c5, avg: timeCount ? totalTime / timeCount : 0, size }
+  return { total: list.length, c2, avg: timeCount ? totalTime / timeCount : 0, totalTime, size }
 })
+
+function fmtDuration(ms: number): string {
+  if (!ms || ms < 0) return '0 ms'
+  if (ms >= 1000) return (ms / 1000).toFixed(2) + ' s'
+  return Math.round(ms) + ' ms'
+}
 
 function timePct(time: number): number {
   const m = maxTime.value
@@ -299,6 +396,119 @@ function selectEntry(id: string): void {
 
 function switchTab(tab: typeof currentTab.value): void {
   currentTab.value = tab
+}
+
+// ——— 编辑模式 ———
+function enterEditMode(): void {
+  const f = activeFile.value
+  if (!f) return
+  editSnapshot = f.entries.slice()
+  editMode.value = true
+  checkedIds.value = new Set()
+}
+
+function exitEditMode(): void {
+  editMode.value = false
+  checkedIds.value = new Set()
+  editSnapshot = null
+}
+
+function cancelEdit(): void {
+  // 放弃本次编辑，恢复进入编辑前的列表
+  const f = activeFile.value
+  if (f && editSnapshot) f.entries = editSnapshot.slice()
+  exitEditMode()
+}
+
+function toggleCheck(id: string): void {
+  const s = new Set(checkedIds.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  checkedIds.value = s
+}
+
+const checkedCount = computed(
+  () => filteredEntries.value.filter((e) => checkedIds.value.has(e._id)).length
+)
+
+const allChecked = computed(
+  () =>
+    filteredEntries.value.length > 0 &&
+    filteredEntries.value.every((e) => checkedIds.value.has(e._id))
+)
+
+function toggleCheckAll(): void {
+  const s = new Set(checkedIds.value)
+  if (allChecked.value) {
+    filteredEntries.value.forEach((e) => s.delete(e._id))
+  } else {
+    filteredEntries.value.forEach((e) => s.add(e._id))
+  }
+  checkedIds.value = s
+}
+
+function onRowClick(e: HarEntry): void {
+  if (editMode.value) {
+    toggleCheck(e._id)
+    return
+  }
+  selectEntry(e._id)
+}
+
+function deleteChecked(): void {
+  const f = activeFile.value
+  if (!f) return
+  const ids = checkedIds.value
+  const before = f.entries.length
+  f.entries = f.entries.filter((e) => !ids.has(e._id))
+  const removed = before - f.entries.length
+  if (selectedEntryId.value && ids.has(selectedEntryId.value)) selectedEntryId.value = null
+  checkedIds.value = new Set()
+  if (removed > 0) showToast(`已删除 ${removed} 条请求，保存后写入源文件`)
+}
+
+const removedCount = computed(() =>
+  editSnapshot ? editSnapshot.length - (activeFile.value?.entries.length || 0) : 0
+)
+
+function clickSave(): void {
+  const f = activeFile.value
+  if (!f) return
+  if (!f.writable) {
+    showToast('示例文件无法写回源文件，请使用「导出」', 'error')
+    return
+  }
+  showSaveConfirm.value = true
+}
+
+async function confirmSave(): Promise<void> {
+  const f = activeFile.value
+  if (!f || !f.writable) return
+  saving.value = true
+  try {
+    const root = f.raw as { log?: { entries?: unknown[] } } | undefined
+    if (root?.log && Array.isArray(root.log.entries)) {
+      const keepIdx = new Set(
+        f.entries.map((e) => e._rawIndex).filter((i): i is number => typeof i === 'number')
+      )
+      root.log.entries = root.log.entries.filter((_, i) => keepIdx.has(i))
+    }
+    const res = await ipcClient.harViewer.writeFile(f.path, JSON.stringify(root ?? {}, null, 2))
+    if (res.ok) {
+      // 保存成功后重排下标，使 raw.log.entries 与当前列表一一对应（支持再次编辑）
+      f.entries.forEach((e, i) => {
+        e._rawIndex = i
+      })
+      showSaveConfirm.value = false
+      exitEditMode()
+      persist()
+      showToast('已保存到源文件')
+    } else {
+      showToast('保存失败：' + (res.error || '未知错误'), 'error')
+    }
+  } finally {
+    saving.value = false
+  }
 }
 
 // ——— 详情辅助 ———
@@ -329,17 +539,6 @@ function methodClass(method: string): string {
   if (m === 'DELETE') return 'delete'
   if (m === 'OPTIONS') return 'options'
   return 'other'
-}
-
-function extFromMime(mime?: string): string {
-  if (!mime) return ''
-  if (mime.includes('json')) return 'JSON'
-  if (mime.includes('html')) return 'HTML'
-  if (mime.includes('javascript') || mime.includes('ecmascript')) return 'JS'
-  if (mime.includes('css')) return 'CSS'
-  if (mime.includes('image/')) return 'IMG'
-  const p = mime.split('/')[1]
-  return p ? p.toUpperCase() : ''
 }
 
 function fmtBytes(n: number): string {
@@ -751,6 +950,18 @@ type HarRequest_postData = { mimeType?: string; text?: string }
             <option value="5">5xx</option>
           </select>
 
+          <select
+            v-model="typeFilter"
+            class="cursor-pointer rounded-lg border px-2 py-1.5 text-xs outline-none"
+            :style="{
+              borderColor: 'var(--border)',
+              backgroundColor: 'var(--bg-base)',
+              color: 'var(--text-primary)'
+            }"
+          >
+            <option v-for="opt in resourceTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+
           <label
             class="flex cursor-pointer select-none items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors"
             :style="{
@@ -764,6 +975,39 @@ type HarRequest_postData = { mimeType?: string; text?: string }
 
           <span class="mx-1 h-5 w-px" :style="{ backgroundColor: 'var(--border)' }"></span>
 
+          <!-- 非编辑态：编辑按钮 -->
+          <UButton
+            v-if="!editMode"
+            icon="i-heroicons-pencil-square"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="!activeFile"
+            @click="enterEditMode"
+            >编辑</UButton
+          >
+          <!-- 编辑态：删除（勾选后显示）/ 取消 / 保存 -->
+          <template v-else>
+            <UButton
+              v-if="checkedCount > 0"
+              icon="i-heroicons-trash"
+              color="error"
+              variant="solid"
+              size="sm"
+              @click="deleteChecked"
+              >删除 ({{ checkedCount }})</UButton
+            >
+            <UButton color="neutral" variant="ghost" size="sm" @click="cancelEdit">取消</UButton>
+            <UButton
+              icon="i-heroicons-check"
+              color="primary"
+              variant="solid"
+              size="sm"
+              @click="clickSave"
+              >保存</UButton
+            >
+          </template>
+
           <UButton
             icon="i-heroicons-arrow-down-tray"
             color="neutral"
@@ -776,7 +1020,7 @@ type HarRequest_postData = { mimeType?: string; text?: string }
         </div>
 
         <!-- 汇总概览 -->
-        <div v-if="activeFile" class="grid grid-cols-6 gap-3">
+        <div v-if="activeFile" class="grid grid-cols-5 gap-3">
           <div class="rounded-xl border p-3" :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }">
             <div class="text-[11px] opacity-70">总请求</div>
             <div class="mt-1 text-lg font-bold" :style="{ color: 'var(--text-primary)' }">{{ summary.total }}</div>
@@ -786,20 +1030,16 @@ type HarRequest_postData = { mimeType?: string; text?: string }
             <div class="mt-1 text-lg font-bold" style="color:#10b981">{{ summary.c2 }}</div>
           </div>
           <div class="rounded-xl border p-3" :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }">
-            <div class="flex items-center gap-1 text-[11px] opacity-70"><span class="h-2 w-2 rounded-full" style="background:#06b6d4"></span>3xx</div>
-            <div class="mt-1 text-lg font-bold" style="color:#06b6d4">{{ summary.c3 }}</div>
+            <div class="text-[11px] opacity-70">总流量</div>
+            <div class="mt-1 text-lg font-bold" style="color:#06b6d4">{{ fmtBytes(summary.size) }}</div>
           </div>
           <div class="rounded-xl border p-3" :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }">
-            <div class="flex items-center gap-1 text-[11px] opacity-70"><span class="h-2 w-2 rounded-full" style="background:#f59e0b"></span>4xx</div>
-            <div class="mt-1 text-lg font-bold" style="color:#f59e0b">{{ summary.c4 }}</div>
-          </div>
-          <div class="rounded-xl border p-3" :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }">
-            <div class="flex items-center gap-1 text-[11px] opacity-70"><span class="h-2 w-2 rounded-full" style="background:#ef4444"></span>5xx</div>
-            <div class="mt-1 text-lg font-bold" style="color:#ef4444">{{ summary.c5 }}</div>
+            <div class="text-[11px] opacity-70">总耗时</div>
+            <div class="mt-1 text-lg font-bold" style="color:#8b5cf6">{{ fmtDuration(summary.totalTime) }}</div>
           </div>
           <div class="rounded-xl border p-3" :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }">
             <div class="text-[11px] opacity-70">平均耗时</div>
-            <div class="mt-1 text-lg font-bold" style="color:#8b5cf6">{{ Math.round(summary.avg) }} ms</div>
+            <div class="mt-1 text-lg font-bold" style="color:#3b82f6">{{ fmtDuration(summary.avg) }}</div>
           </div>
         </div>
 
@@ -816,12 +1056,20 @@ type HarRequest_postData = { mimeType?: string; text?: string }
                   :style="{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }"
                 >
                   <tr :style="{ borderBottom: '1px solid var(--border)' }">
+                    <th v-if="editMode" class="px-3 py-2 text-center" style="width:36px">
+                      <input
+                        type="checkbox"
+                        class="h-3.5 w-3.5 cursor-pointer align-middle"
+                        :checked="allChecked"
+                        @click.stop="toggleCheckAll"
+                      />
+                    </th>
                     <th class="px-3 py-2 text-left" style="width:44px">#</th>
                     <th class="px-3 py-2 text-left" style="width:70px">状态</th>
                     <th class="px-3 py-2 text-left" style="width:80px">方法</th>
                     <th class="px-3 py-2 text-left" style="width:160px">域名</th>
                     <th class="px-3 py-2 text-left">URL</th>
-                    <th class="px-3 py-2 text-left" style="width:70px">类型</th>
+                    <th class="px-3 py-2 text-left" style="width:92px">类型</th>
                     <th class="px-3 py-2 text-left" style="width:120px">耗时</th>
                     <th class="px-3 py-2 text-right" style="width:80px">大小</th>
                   </tr>
@@ -832,18 +1080,30 @@ type HarRequest_postData = { mimeType?: string; text?: string }
                     :key="e._id"
                     class="cursor-pointer transition-colors"
                     :style="{
-                      backgroundColor: e._id === selectedEntryId ? '#06b6d412' : 'transparent',
+                      backgroundColor: checkedIds.has(e._id)
+                        ? '#06b6d40d'
+                        : e._id === selectedEntryId
+                          ? '#06b6d412'
+                          : 'transparent',
                       borderTop: '1px solid var(--border)',
-                      boxShadow: e._id === selectedEntryId ? 'inset 3px 0 0 #06b6d4' : 'none'
+                      boxShadow: checkedIds.has(e._id) || e._id === selectedEntryId ? 'inset 3px 0 0 #06b6d4' : 'none'
                     }"
-                    @click="selectEntry(e._id)"
+                    @click="onRowClick(e)"
                   >
+                    <td v-if="editMode" class="px-3 py-2 text-center" @click.stop="toggleCheck(e._id)">
+                      <input
+                        type="checkbox"
+                        class="h-3.5 w-3.5 cursor-pointer align-middle"
+                        :checked="checkedIds.has(e._id)"
+                        @click.stop="toggleCheck(e._id)"
+                      />
+                    </td>
                     <td class="px-3 py-2 opacity-60">{{ i + 1 }}</td>
                     <td class="px-3 py-2"><span class="status-pill" :class="statusClass(e.response.status)">{{ e.response.status }}</span></td>
                     <td class="px-3 py-2"><span class="method-tag" :class="methodClass(e.request.method)">{{ e.request.method }}</span></td>
                     <td class="whitespace-nowrap px-3 py-2" :title="e.request.url" style="font-family:monospace; color:var(--text-secondary)">{{ splitUrl(e.request.url).domain || '-' }}</td>
                     <td class="max-w-[420px] truncate px-3 py-2" :title="e.request.url" style="font-family:monospace">{{ splitUrl(e.request.url).path }}</td>
-                    <td class="px-3 py-2 opacity-80">{{ extFromMime(e.response.content?.mimeType) }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 opacity-80">{{ resourceTypeLabel(resourceTypeOf(e)) }}</td>
                     <td class="px-3 py-2">
                       <div v-if="typeof e.time === 'number'" class="flex items-center gap-2">
                         <div class="time-track w-16"><div class="time-fill" :style="{ width: timePct(e.time) + '%' }"></div></div>
@@ -901,7 +1161,7 @@ type HarRequest_postData = { mimeType?: string; text?: string }
             </button>
           </div>
 
-          <div class="min-h-0 flex-1 overflow-auto p-4">
+          <div class="min-h-0 flex-1 overflow-auto p-4 select-text">
             <!-- 概述 -->
             <div v-if="currentTab === 'overview' && selectedEntry" class="space-y-2">
               <div class="detail-row"><span class="lbl">URL</span><span class="break-all" style="color:var(--text-primary)">{{ selectedEntry.request.url }}</span></div>
@@ -1053,6 +1313,65 @@ type HarRequest_postData = { mimeType?: string; text?: string }
     >
       <UIcon :name="toast.type === 'error' ? 'i-heroicons-x-circle' : 'i-heroicons-check-circle'" size="16" />
       {{ toast.message }}
+    </div>
+
+    <!-- 保存确认弹窗 -->
+    <div
+      v-if="showSaveConfirm"
+      class="fixed inset-0 z-[60] flex items-center justify-center"
+      style="background-color: rgba(0, 0, 0, 0.5)"
+      @click.self="!saving && (showSaveConfirm = false)"
+    >
+      <div
+        class="w-[440px] max-w-[90vw] rounded-2xl border p-6 shadow-2xl"
+        :style="{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }"
+      >
+        <div class="flex items-center gap-3 mb-4">
+          <div
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+            style="background-color: #f59e0b1f; color: #f59e0b"
+          >
+            <UIcon name="i-heroicons-exclamation-triangle" size="24" />
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold" :style="{ color: 'var(--text-primary)' }">保存到源文件？</h2>
+            <p class="text-xs mt-0.5" :style="{ color: 'var(--text-secondary)' }">将覆盖写入原始 HAR 文件</p>
+          </div>
+        </div>
+
+        <div class="mb-3 text-[13px] leading-relaxed" :style="{ color: 'var(--text-secondary)' }">
+          本次编辑共删除 <b style="color:#ef4444">{{ removedCount }}</b> 条请求，剩余
+          <b :style="{ color: 'var(--text-primary)' }">{{ activeFile?.entries.length }}</b> 条，将保存到：
+        </div>
+        <div
+          class="mb-4 rounded-lg border px-3 py-2 font-mono text-[12px] break-all"
+          :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-base)', color: 'var(--text-muted)' }"
+        >
+          {{ activeFile?.path }}
+        </div>
+        <p class="mb-5 text-[12px]" style="color: var(--text-muted)">注意：此操作会直接覆盖原文件内容，建议提前备份。</p>
+
+        <div class="flex justify-end gap-2">
+          <button
+            class="h-9 cursor-pointer rounded-lg px-4 text-[13px] transition-colors disabled:opacity-50"
+            :style="{ backgroundColor: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)' }"
+            :disabled="saving"
+            @click="showSaveConfirm = false"
+          >
+            取消
+          </button>
+          <button
+            class="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            :style="{ backgroundColor: '#06b6d4' }"
+            :disabled="saving"
+            @click="confirmSave"
+          >
+            <UIcon v-if="saving" name="i-heroicons-arrow-path" size="14" class="animate-spin" />
+            <UIcon v-else name="i-heroicons-check" size="14" />
+            {{ saving ? '保存中…' : '保存到源文件' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

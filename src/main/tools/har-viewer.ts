@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron'
-import { readFile } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
 
 interface OpenedFile {
   name: string
@@ -10,6 +10,11 @@ interface OpenedFile {
 export interface OpenFilesResult {
   canceled: boolean
   files?: OpenedFile[]
+}
+
+export interface WriteFileResult {
+  ok: boolean
+  error?: string
 }
 
 /**
@@ -51,4 +56,20 @@ export function registerHarViewerHandlers(): void {
       return null
     }
   })
+
+  // 编辑后写回源 HAR 文件
+  ipcMain.handle(
+    'har-viewer:write-file',
+    async (_event, filePath: unknown, content: unknown): Promise<WriteFileResult> => {
+      if (typeof filePath !== 'string' || !filePath || typeof content !== 'string') {
+        return { ok: false, error: '参数无效' }
+      }
+      try {
+        await writeFile(filePath, content, 'utf-8')
+        return { ok: true }
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    }
+  )
 }

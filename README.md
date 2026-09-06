@@ -80,3 +80,15 @@ src\main\tools\index.ts 中注册新的工具 handler
 src\renderer\src\pages\settings.vue 设置版本号
 src\renderer\src\data\tools.ts 中注册新的工具条目
 package.json设置版本号
+
+### 发布版本
+发版功能需要在以下地方更新版本号, 默认为增加0.0.1：
+- `package.json` 中的`version`字段
+- `src\renderer\src\pages\settings.vue#234` 中的版本文字
+接着运行打包命令
+```bash
+$ pnpm build:win
+```
+运行成功后, 提交到 git 仓库, commit信息为`update version to 新版本`
+
+完成

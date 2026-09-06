@@ -1,7 +1,7 @@
 import type { AppSettings } from '../../../shared/types/settings'
 import { SEENTAO_IPC } from '../../../shared/types/seentao-record'
 import type { SeentaoRecord, DayRecords, SeentaoRecordConfig } from '../../../shared/types/seentao-record'
-import type { HttpRequestParams, HttpResponse } from '../../../main/tools/yingdao-study'
+import type { HttpRequestParams, HttpResponse } from '../../../shared/types/yingdao-study'
 import { WATERMARK_IPC } from '../../../shared/types/watermark'
 import type { WatermarkPreset, FileInfo, ImageInfo, PreviewFileParams } from '../../../shared/types/watermark'
 import { IMAGE_HOSTING_IPC } from '../../../shared/types/image-hosting'
@@ -153,7 +153,9 @@ export const ipcClient = {
     openFiles: (): Promise<{ canceled: boolean; files?: { name: string; path: string; content: string }[] }> =>
       ipc.invoke('har-viewer:open-files'),
     readFile: (filePath: string): Promise<string | null> =>
-      ipc.invoke('har-viewer:read-file', filePath)
+      ipc.invoke('har-viewer:read-file', filePath),
+    writeFile: (filePath: string, content: string): Promise<{ ok: boolean; error?: string }> =>
+      ipc.invoke('har-viewer:write-file', filePath, content)
   },
 
   // 通用 IPC 调用（供高级使用）
