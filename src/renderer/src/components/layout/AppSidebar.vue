@@ -3,18 +3,25 @@ interface Props {
   activeCategory?: string
   collapsed?: boolean
   pinned?: boolean
+  /** 是否处于工具详情页（隐藏应用工具栏时启用） */
+  isToolPage?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   activeCategory: 'all',
   collapsed: false,
-  pinned: false
+  pinned: false,
+  isToolPage: false
 })
 
 const emit = defineEmits<{
   select: [category: string]
   toggleCollapse: []
   togglePin: []
+  back: []
+  minimize: []
+  maximize: []
+  close: []
 }>()
 
 const categories = [
@@ -39,8 +46,22 @@ function handleSelect(category: string): void {
       backgroundColor: 'var(--bg-sidebar)'
     }"
   >
+    <!-- 工具页：返回按钮（该区域可拖拽移动窗口） -->
+    <div v-if="isToolPage" class="flex flex-col gap-1 px-3 pt-4" style="-webkit-app-region: drag">
+      <button
+        class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg px-2 text-sm transition-colors duration-150 hover:bg-[var(--border)]"
+        :style="{ color: 'var(--text-secondary)' }"
+        :title="collapsed ? '返回工具列表' : undefined"
+        style="-webkit-app-region: no-drag"
+        @click="emit('back')"
+      >
+        <UIcon name="i-heroicons-arrow-left" class="shrink-0" size="18" />
+        <span v-if="!collapsed" class="truncate whitespace-nowrap">返回</span>
+      </button>
+    </div>
+
     <!-- 分类区域 -->
-    <div class="flex flex-col gap-1 px-3 pt-4">
+    <div class="flex flex-col gap-1 px-3 pt-4" :class="isToolPage ? 'pt-2' : ''">
       <span
         v-if="!collapsed"
         class="mb-1 px-2 text-xs font-medium uppercase tracking-wider"
@@ -71,8 +92,35 @@ function handleSelect(category: string): void {
       </button>
     </div>
 
-    <!-- 底部：收起/展开 + 固定按钮 -->
+    <!-- 底部：窗口控制（工具页）/ 收起/固定按钮 -->
     <div class="mt-auto border-t px-3 py-3" :style="{ borderColor: 'var(--border)' }">
+      <!-- 工具页：窗口最小化/最大化/关闭（替代隐藏的应用工具栏） -->
+      <div v-if="isToolPage" class="mb-2 flex items-center gap-1">
+        <button
+          class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-[var(--border)]"
+          :style="{ color: 'var(--text-muted)' }"
+          title="最小化"
+          @click="emit('minimize')"
+        >
+          <UIcon name="i-heroicons-minus" size="16" />
+        </button>
+        <button
+          class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-[var(--border)]"
+          :style="{ color: 'var(--text-muted)' }"
+          title="最大化"
+          @click="emit('maximize')"
+        >
+          <UIcon name="i-heroicons-arrows-pointing-out" size="16" />
+        </button>
+        <button
+          class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-[var(--border)] hover:text-red-400"
+          :style="{ color: 'var(--text-muted)' }"
+          title="关闭"
+          @click="emit('close')"
+        >
+          <UIcon name="i-heroicons-x-mark" size="16" />
+        </button>
+      </div>
       <div class="flex items-center gap-1">
         <!-- 固定/取消固定按钮（仅收起时显示） -->
         <button

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ipcClient } from '../../ipc/client'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useToolsStore } from '../../stores/toolsStore'
@@ -12,9 +12,17 @@ import DataDirSetupDialog from './DataDirSetupDialog.vue'
 console.log('[AppLayout.vue] Script setup executing')
 
 const router = useRouter()
+const route = useRoute()
 const settingsStore = useSettingsStore()
 const toolsStore = useToolsStore()
 const { activeCategory, setCategory } = toolsStore
+
+// 工具详情页：隐藏应用工具栏，扩大工具可用区域
+const isToolPage = computed(() => route.name === 'tool')
+
+function handleBack(): void {
+  router.push('/')
+}
 
 // 数据目录首次配置引导
 const showDataSetup = ref(false)
@@ -141,6 +149,7 @@ router.afterEach((to) => {
 <template>
   <div class="flex h-screen w-screen flex-col overflow-hidden" :style="{ backgroundColor: 'var(--bg-base)' }">
     <AppTopBar
+      v-if="!isToolPage"
       @open-settings="handleOpenSettings"
       @toggle-theme="handleToggleTheme"
       @minimize="ipcClient.minimize()"
@@ -152,7 +161,12 @@ router.afterEach((to) => {
         :collapsed="sidebarCollapsed"
         :pinned="sidebarPinned"
         :active-category="activeCategory"
+        :is-tool-page="isToolPage"
         @select="handleSelect"
+        @back="handleBack"
+        @minimize="ipcClient.minimize()"
+        @maximize="ipcClient.maximize()"
+        @close="ipcClient.close()"
         @toggle-collapse="toggleCollapse"
         @toggle-pin="togglePin"
       />
