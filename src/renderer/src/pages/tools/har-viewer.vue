@@ -99,7 +99,13 @@ function parseHar(content: string, filePath: string, name?: string): HarFile {
   const data: unknown = JSON.parse(content)
   const log = (data as { log?: { entries?: unknown[] } }).log
   const raw = Array.isArray(log?.entries) ? log.entries : []
-  const entries: HarEntry[] = raw.map((it, idx) => normalizeEntry(it, idx))
+  // 一键简化后的文件：通用请求头/响应头存于 log._commonHeaders，展示时合并回每个条目
+  const commonRaw = (log as Record<string, unknown> | undefined)?._commonHeaders as
+    | { request?: unknown; response?: unknown }
+    | undefined
+  const commonReq = toNameValues(commonRaw?.request) || []
+  const commonResp = toNameValues(commonRaw?.response) || []
+  const entries: HarEntry[] = raw.map((it, idx) => normalizeEntry(it, idx, commonReq, commonResp))
   // 仅绝对路径（真实打开的文件）可写回源文件；示例文件等为不可写
   const writable = /^([a-zA-Z]:[\\/]|\/)/.test(filePath)
   return {
@@ -113,7 +119,16 @@ function parseHar(content: string, filePath: string, name?: string): HarFile {
   }
 }
 
-function normalizeEntry(raw: unknown, rawIndex: number): HarEntry {
+// 合并通用头与条目自有头（按 name+value 去重，通用头在前）
+function mergeHeaders(common: HarNameValue[], own: HarNameValue[] | undefined): HarNameValue[] {
+  const ownList = own || []
+  if (common.length === 0) return ownList
+  const seen = new Set(ownList.map((h) => h.name.toLowerCase() + '\u0000' + h.value))
+  const extra = common.filter((h) => !seen.has(h.name.toLowerCase() + '\u0000' + h.value))
+  return [...extra, ...ownList]
+}
+
+function normalizeEntry(raw: unknown, rawIndex: number, commonReq?: HarNameValue[], commonResp?: HarNameValue[]): HarEntry {
   const it = raw as Record<string, unknown>
   const request = (it.request || {}) as Record<string, unknown>
   const response = (it.response || {}) as Record<string, unknown>
@@ -129,7 +144,7 @@ function normalizeEntry(raw: unknown, rawIndex: number): HarEntry {
       method: String(request.method || 'GET'),
       url: String(request.url || ''),
       httpVersion: typeof request.httpVersion === 'string' ? request.httpVersion : undefined,
-      headers: toNameValues(request.headers),
+      headers: mergeHeaders(commonReq || [], toNameValues(request.headers)),
       queryString: toNameValues(request.queryString),
       cookies: toNameValues(request.cookies),
       headersSize: toNumber(request.headersSize),
@@ -140,7 +155,7 @@ function normalizeEntry(raw: unknown, rawIndex: number): HarEntry {
       status: toNumber(response.status) ?? 0,
       statusText: typeof response.statusText === 'string' ? response.statusText : undefined,
       httpVersion: typeof response.httpVersion === 'string' ? response.httpVersion : undefined,
-      headers: toNameValues(response.headers),
+      headers: mergeHeaders(commonResp || [], toNameValues(response.headers)),
       cookies: toNameValues(response.cookies),
       redirectURL: typeof response.redirectURL === 'string' ? response.redirectURL : undefined,
       headersSize: toNumber(response.headersSize),
@@ -391,7 +406,9 @@ function timePct(time: number): number {
 // ——— 选中 ———
 function selectEntry(id: string): void {
   selectedEntryId.value = id
-  currentTab.value = 'overview'
+  // 保持当前 Tab，切换请求时不重置回「概述」
+  reqBodySimplified.value = false
+  respBodySimplified.value = false
 }
 
 function switchTab(tab: typeof currentTab.value): void {
@@ -665,11 +682,419 @@ function buildTree(value: unknown, key: string | null): JsonTreeNode {
 }
 
 const requestBodyRoot = computed<JsonTreeNode | null>(() =>
-  requestBodyIsJson.value ? buildTree(JSON.parse(requestBody.value as string), null) : null
+  requestBodyIsJson.value && requestDisplayText.value ? buildTree(JSON.parse(requestDisplayText.value), null) : null
 )
 const responseBodyRoot = computed<JsonTreeNode | null>(() =>
-  responseBodyIsJson.value ? buildTree(JSON.parse(responseBody.value.text), null) : null
+  responseBodyIsJson.value && responseDisplayText.value ? buildTree(JSON.parse(responseDisplayText.value), null) : null
 )
+
+// ——— JSON 简化：同层重复键保留最后一个值；数组内键名相同的对象元素视为重复，仅保留首个 ———
+// 递归处理：不扁平化、不改字段名、不改数据类型，null/空数组/空对象原样保留，维持原始顺序
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null'
+  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']'
+  const obj = value as Record<string, unknown>
+  return '{' + Object.keys(obj).sort().map((k) => JSON.stringify(k) + ':' + canonicalJson(obj[k])).join(',') + '}'
+}
+
+// 对象元素的键名签名（只看键名集合，不看值）
+function keyNamesSignature(obj: Record<string, unknown>): string {
+  return Object.keys(obj)
+    .sort()
+    .map((k) => JSON.stringify(k))
+    .join(',')
+}
+
+function simplifyJson(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) {
+    const seen = new Set<string>()
+    const out: unknown[] = []
+    for (const item of value) {
+      const simplified = simplifyJson(item)
+      if (simplified !== null && typeof simplified === 'object') {
+        // 对象元素：键名相同即算重复，仅保留首个；数组元素：完全相同才去重；基础类型原样保留
+        const sig = Array.isArray(simplified) ? canonicalJson(simplified) : keyNamesSignature(simplified as Record<string, unknown>)
+        if (seen.has(sig)) continue
+        seen.add(sig)
+      }
+      out.push(simplified)
+    }
+    return out
+  }
+  const obj = value as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  for (const k of Object.keys(obj)) out[k] = simplifyJson(obj[k])
+  return out
+}
+
+const reqBodySimplified = ref(false)
+const respBodySimplified = ref(false)
+const simplifiedRequestBody = computed(() => {
+  if (!requestBodyIsJson.value) return requestBody.value
+  try {
+    return JSON.stringify(simplifyJson(JSON.parse(requestBody.value)), null, 2)
+  } catch {
+    return requestBody.value
+  }
+})
+const requestDisplayText = computed(() => (reqBodySimplified.value ? simplifiedRequestBody.value : requestBody.value))
+const simplifiedResponseBody = computed(() => {
+  if (!responseBodyIsJson.value) return responseBody.value.text
+  try {
+    return JSON.stringify(simplifyJson(JSON.parse(responseBody.value.text)), null, 2)
+  } catch {
+    return responseBody.value.text
+  }
+})
+const responseDisplayText = computed(() => (respBodySimplified.value ? simplifiedResponseBody.value : responseBody.value.text))
+
+// 切换简化状态（请求体/响应体通用，非 JSON 内容提示不可简化）
+function byteLen(s: string): number {
+  return new TextEncoder().encode(s).length
+}
+
+function toggleSimplify(kind: 'req' | 'resp'): void {
+  const isJson = kind === 'req' ? requestBodyIsJson.value : responseBodyIsJson.value
+  const original = kind === 'req' ? requestBody.value : responseBody.value.text
+  if (!original) return
+  if (!isJson) {
+    showToast('仅 JSON 内容支持简化', 'error')
+    return
+  }
+  const simplifiedOn = kind === 'req' ? reqBodySimplified.value : respBodySimplified.value
+  if (simplifiedOn) {
+    // 当前已是简化态，还原
+    if (kind === 'req') reqBodySimplified.value = false
+    else respBodySimplified.value = false
+    return
+  }
+  const simplified = kind === 'req' ? simplifiedRequestBody.value : simplifiedResponseBody.value
+  const before = byteLen(original)
+  const after = byteLen(simplified)
+  if (after >= before) {
+    // 无可去除的完全重复内容，保持原始展示
+    showToast('未发现键名相同的重复对象，无可简化的内容', 'error')
+    return
+  }
+  const pct = Math.round((1 - after / before) * 100)
+  if (kind === 'req') reqBodySimplified.value = true
+  else respBodySimplified.value = true
+  showToast(`已简化：${fmtBytes(before)} → ${fmtBytes(after)}（减少 ${pct}%）`)
+}
+
+// ——— 保存简化后的请求/响应体到源 HAR 文件 ———
+const savingBody = ref(false)
+
+async function saveSimplifiedBody(kind: 'req' | 'resp'): Promise<void> {
+  const f = activeFile.value
+  const e = selectedEntry.value
+  if (!f || !e || savingBody.value) return
+  if (!f.writable) {
+    showToast('示例文件无法写回源文件，请使用「导出」', 'error')
+    return
+  }
+  const simplifiedText = kind === 'req' ? simplifiedRequestBody.value : simplifiedResponseBody.value
+  if (!simplifiedText) return
+  let minified: string
+  try {
+    minified = JSON.stringify(JSON.parse(simplifiedText))
+  } catch {
+    showToast('简化内容不是有效 JSON，无法保存', 'error')
+    return
+  }
+  const root = f.raw as { log?: { entries?: unknown[] } } | undefined
+  const idx = e._rawIndex
+  if (!root?.log || !Array.isArray(root.log.entries) || typeof idx !== 'number') {
+    showToast('未找到源文件中的对应请求', 'error')
+    return
+  }
+  const rawEntry = root.log.entries[idx] as
+    | { request?: { postData?: { text?: string } }; response?: { content?: { text?: string; encoding?: string } } }
+    | undefined
+  if (!rawEntry) {
+    showToast('未找到源文件中的对应请求', 'error')
+    return
+  }
+  savingBody.value = true
+  try {
+    // 更新原始 HAR 中对应条目的内容（响应体清空 base64 标记，按明文 JSON 存储）
+    if (kind === 'resp') {
+      rawEntry.response = rawEntry.response || {}
+      rawEntry.response.content = rawEntry.response.content || {}
+      rawEntry.response.content.text = minified
+      rawEntry.response.content.encoding = undefined
+    } else {
+      rawEntry.request = rawEntry.request || {}
+      rawEntry.request.postData = rawEntry.request.postData || {}
+      rawEntry.request.postData.text = minified
+    }
+    const res = await ipcClient.harViewer.writeFile(f.path, JSON.stringify(root, null, 2))
+    if (res.ok) {
+      // 同步内存展示数据，并退出简化态（原始视图即已保存的简化内容）
+      if (kind === 'resp') {
+        if (e.response.content) {
+          e.response.content.text = minified
+          e.response.content.encoding = undefined
+        }
+        respBodySimplified.value = false
+      } else {
+        if (e.request.postData) e.request.postData.text = minified
+        reqBodySimplified.value = false
+      }
+      showToast('简化内容已写入源文件')
+    } else {
+      showToast('保存失败：' + (res.error || '未知错误'), 'error')
+    }
+  } finally {
+    savingBody.value = false
+  }
+}
+
+// ——— 一键简化：删除静态资源请求 + 清理 _initiator + 简化剩余请求的响应体 ———
+interface OneClickPlan {
+  deleteIdx: Set<number>
+  deleteByType: { label: string; count: number }[]
+  initiatorCount: number
+  bodyCount: number
+  bodyBytesBefore: number
+  bodyBytesAfter: number
+  commonRequestHeaders: HarNameValue[]
+  commonResponseHeaders: HarNameValue[]
+  headerRemovedCount: number
+  remaining: number
+  newTexts: Map<number, { text: string; wasBase64: boolean; afterBytes: number }>
+}
+
+const ONE_CLICK_DELETE_TYPES: { type: EntryResourceType; label: string }[] = [
+  { type: 'image', label: '图片' },
+  { type: 'script', label: '脚本' },
+  { type: 'document', label: '文档' },
+  { type: 'stylesheet', label: '样式' }
+]
+
+const showOneClickConfirm = ref(false)
+const oneClickPlan = ref<OneClickPlan | null>(null)
+const oneClickSaving = ref(false)
+
+function buildOneClickPlan(f: HarFile): OneClickPlan | null {
+  const root = f.raw as { log?: { entries?: unknown[] } } | undefined
+  if (!root?.log || !Array.isArray(root.log.entries)) return null
+
+  // 规范化条目与原始条目按下标一一对应
+  const entryByIdx = new Map<number, HarEntry>()
+  f.entries.forEach((en) => {
+    if (typeof en._rawIndex === 'number') entryByIdx.set(en._rawIndex, en)
+  })
+
+  const deleteTypes = new Set(ONE_CLICK_DELETE_TYPES.map((t) => t.type))
+  const deleteIdx = new Set<number>()
+  const typeCounts = new Map<EntryResourceType, number>()
+  let initiatorCount = 0
+  const newTexts = new Map<number, { text: string; wasBase64: boolean; afterBytes: number }>()
+  let bodyBytesBefore = 0
+  let bodyBytesAfter = 0
+
+  root.log.entries.forEach((it, idx) => {
+    const ne = entryByIdx.get(idx)
+    if (ne) {
+      const rt = resourceTypeOf(ne)
+      if (deleteTypes.has(rt)) {
+        deleteIdx.add(idx)
+        typeCounts.set(rt, (typeCounts.get(rt) || 0) + 1)
+        return
+      }
+    }
+    const raw = it as Record<string, unknown>
+    if (typeof raw._initiator !== 'undefined') initiatorCount++
+    // 尝试简化响应体（JSON 才处理；base64 先解码）
+    const resp = raw.response as { content?: { text?: unknown; encoding?: unknown } } | undefined
+    const content = resp?.content as { text?: unknown; encoding?: unknown } | undefined
+    let text = typeof content?.text === 'string' ? content.text : ''
+    if (!text) return
+    const wasBase64 = content?.encoding === 'base64'
+    if (wasBase64) {
+      try {
+        text = atob(text)
+      } catch {
+        return
+      }
+    }
+    try {
+      const obj: unknown = JSON.parse(text)
+      const simplified = JSON.stringify(simplifyJson(obj))
+      const before = byteLen(text)
+      const after = byteLen(simplified)
+      if (after < before) {
+        newTexts.set(idx, { text: simplified, wasBase64, afterBytes: after })
+        bodyBytesBefore += before
+        bodyBytesAfter += after
+      }
+    } catch {
+      /* 非 JSON 跳过 */
+    }
+  })
+
+  // 通用 Header 去重统计：剩余条目中「同名同值」出现 ≥2 次的请求/响应头提取为一份
+  const reqHeaderCount = new Map<string, { name: string; value: string; count: number }>()
+  const respHeaderCount = new Map<string, { name: string; value: string; count: number }>()
+  const collectHeaders = (arr: unknown, map: Map<string, { name: string; value: string; count: number }>): void => {
+    if (!Array.isArray(arr)) return
+    arr.forEach((h) => {
+      const hv = h as { name?: unknown; value?: unknown } | null
+      if (!hv || typeof hv.name !== 'string') return
+      const value = typeof hv.value === 'string' ? hv.value : ''
+      const key = hv.name.toLowerCase() + '\u0000' + value
+      const cur = map.get(key)
+      if (cur) cur.count++
+      else map.set(key, { name: hv.name, value, count: 1 })
+    })
+  }
+  root.log.entries.forEach((it, idx) => {
+    if (deleteIdx.has(idx)) return
+    const raw = it as Record<string, unknown>
+    const req = raw.request as Record<string, unknown> | undefined
+    const resp = raw.response as Record<string, unknown> | undefined
+    collectHeaders(req?.headers, reqHeaderCount)
+    collectHeaders(resp?.headers, respHeaderCount)
+  })
+  const commonRequestHeaders = [...reqHeaderCount.values()]
+    .filter((x) => x.count >= 2)
+    .map((x) => ({ name: x.name, value: x.value }))
+  const commonResponseHeaders = [...respHeaderCount.values()]
+    .filter((x) => x.count >= 2)
+    .map((x) => ({ name: x.name, value: x.value }))
+  const headerRemovedCount =
+    [...reqHeaderCount.values(), ...respHeaderCount.values()]
+      .filter((x) => x.count >= 2)
+      .reduce((s, x) => s + x.count, 0)
+
+  return {
+    deleteIdx,
+    deleteByType: ONE_CLICK_DELETE_TYPES.map((t) => ({ label: t.label, count: typeCounts.get(t.type) || 0 })),
+    initiatorCount,
+    bodyCount: newTexts.size,
+    bodyBytesBefore,
+    bodyBytesAfter,
+    commonRequestHeaders,
+    commonResponseHeaders,
+    headerRemovedCount,
+    remaining: root.log.entries.length - deleteIdx.size,
+    newTexts
+  }
+}
+
+function clickOneClickSimplify(): void {
+  const f = activeFile.value
+  if (!f) return
+  if (editMode.value) {
+    showToast('请先退出编辑模式', 'error')
+    return
+  }
+  if (!f.writable) {
+    showToast('示例文件无法写回源文件，请使用「导出」', 'error')
+    return
+  }
+  const plan = buildOneClickPlan(f)
+  if (!plan) {
+    showToast('未找到源文件数据', 'error')
+    return
+  }
+  if (plan.deleteIdx.size === 0 && plan.initiatorCount === 0 && plan.newTexts.size === 0 && plan.headerRemovedCount === 0) {
+    showToast('没有可简化的内容', 'error')
+    return
+  }
+  oneClickPlan.value = plan
+  showOneClickConfirm.value = true
+}
+
+async function confirmOneClickSimplify(): Promise<void> {
+  const f = activeFile.value
+  const plan = oneClickPlan.value
+  if (!f || !plan || oneClickSaving.value) return
+  const root = f.raw as { log?: { entries?: unknown[] } } | undefined
+  if (!root?.log || !Array.isArray(root.log.entries)) return
+  oneClickSaving.value = true
+  try {
+    const selectedOld = selectedEntry.value?._rawIndex
+    // 通用 Header 集合（同名同值出现 ≥2 次，移出各条目、在 log._commonHeaders 保留一份）
+    const commonReqKeys = new Set(plan.commonRequestHeaders.map((h) => h.name.toLowerCase() + '\u0000' + h.value))
+    const commonRespKeys = new Set(plan.commonResponseHeaders.map((h) => h.name.toLowerCase() + '\u0000' + h.value))
+    const isCommon = (h: unknown, keys: Set<string>): boolean => {
+      const hv = h as { name?: unknown; value?: unknown } | null
+      if (!hv || typeof hv.name !== 'string') return false
+      const value = typeof hv.value === 'string' ? hv.value : ''
+      return keys.has(hv.name.toLowerCase() + '\u0000' + value)
+    }
+    const oldToNew = new Map<number, number>()
+    const newRaw: unknown[] = []
+    root.log.entries.forEach((it, idx) => {
+      if (plan.deleteIdx.has(idx)) return
+      const raw = it as Record<string, unknown>
+      if (typeof raw._initiator !== 'undefined') delete raw._initiator
+      const req = raw.request as Record<string, unknown> | undefined
+      if (req && Array.isArray(req.headers) && commonReqKeys.size > 0) {
+        req.headers = (req.headers as unknown[]).filter((h) => !isCommon(h, commonReqKeys))
+      }
+      const resp = raw.response as Record<string, unknown> | undefined
+      if (resp && Array.isArray(resp.headers) && commonRespKeys.size > 0) {
+        resp.headers = (resp.headers as unknown[]).filter((h) => !isCommon(h, commonRespKeys))
+      }
+      const nt = plan.newTexts.get(idx)
+      if (nt) {
+        const respObj = (raw.response || {}) as Record<string, unknown>
+        const content = (respObj.content || {}) as Record<string, unknown>
+        content.text = nt.text
+        if (nt.wasBase64) content.encoding = undefined
+        content.size = nt.afterBytes
+        respObj.content = content
+        raw.response = respObj
+      }
+      oldToNew.set(idx, newRaw.length)
+      newRaw.push(raw)
+    })
+    root.log.entries = newRaw
+    // 通用请求头/响应头仅保留一份，写入 log._commonHeaders（解析时自动合并回显示）
+    if (plan.commonRequestHeaders.length > 0 || plan.commonResponseHeaders.length > 0) {
+      ;(root.log as Record<string, unknown>)._commonHeaders = {
+        ...(plan.commonRequestHeaders.length > 0 ? { request: plan.commonRequestHeaders } : {}),
+        ...(plan.commonResponseHeaders.length > 0 ? { response: plan.commonResponseHeaders } : {})
+      }
+    }
+    // 同步内存条目：过滤被删请求、重排下标、更新已简化的响应体
+    f.entries = f.entries
+      .filter((en) => typeof en._rawIndex === 'number' && !plan.deleteIdx.has(en._rawIndex))
+      .map((en) => {
+        const oldIdx = en._rawIndex as number
+        const nt = plan.newTexts.get(oldIdx)
+        if (nt && en.response.content) {
+          en.response.content.text = nt.text
+          if (nt.wasBase64) en.response.content.encoding = undefined
+          en.response.content.size = nt.afterBytes
+        }
+        en._rawIndex = oldToNew.get(oldIdx) ?? 0
+        return en
+      })
+    const res = await ipcClient.harViewer.writeFile(f.path, JSON.stringify(root, null, 2))
+    if (res.ok) {
+      // 选中项被删除时清空详情面板与简化状态
+      if (selectedOld !== undefined && plan.deleteIdx.has(selectedOld)) {
+        selectedEntryId.value = null
+        reqBodySimplified.value = false
+        respBodySimplified.value = false
+      }
+      showOneClickConfirm.value = false
+      oneClickPlan.value = null
+      showToast(
+        `一键简化完成：删除 ${plan.deleteIdx.size} 条，简化响应体 ${plan.newTexts.size} 个，已写入源文件`
+      )
+    } else {
+      showToast('保存失败：' + (res.error || '未知错误'), 'error')
+    }
+  } finally {
+    oneClickSaving.value = false
+  }
+}
 
 // ——— 复制 ———
 async function copyText(text: string): Promise<void> {
@@ -975,7 +1400,17 @@ type HarRequest_postData = { mimeType?: string; text?: string }
 
           <span class="mx-1 h-5 w-px" :style="{ backgroundColor: 'var(--border)' }"></span>
 
-          <!-- 非编辑态：编辑按钮 -->
+          <!-- 非编辑态：一键简化 / 编辑按钮 -->
+          <UButton
+            v-if="!editMode"
+            icon="i-heroicons-scissors"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="!activeFile"
+            @click="clickOneClickSimplify"
+            >一键简化</UButton
+          >
           <UButton
             v-if="!editMode"
             icon="i-heroicons-pencil-square"
@@ -1226,11 +1661,31 @@ type HarRequest_postData = { mimeType?: string; text?: string }
 
             <!-- 请求体 -->
             <div v-else-if="currentTab === 'requestbody'" class="relative flex h-full min-h-0 flex-col">
-              <div class="absolute right-0 top-0 z-10">
+              <div class="absolute right-0 top-0 z-10 flex items-center gap-1.5">
+                <button
+                  v-if="requestBody"
+                  class="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[12px]"
+                  :style="reqBodySimplified ? 'background-color:#06b6d4;color:#fff' : 'background-color: var(--border)'"
+                  :title="reqBodySimplified ? '还原为原始 JSON' : '去除数组中键名相同的重复对象'"
+                  @click="toggleSimplify('req')"
+                >
+                  <UIcon :name="reqBodySimplified ? 'i-heroicons-arrow-uturn-left' : 'i-heroicons-funnel'" size="13" />
+                  {{ reqBodySimplified ? '还原' : '简化' }}
+                </button>
+                <button
+                  v-if="reqBodySimplified"
+                  class="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[12px]"
+                  style="background-color:#10b981;color:#fff"
+                  title="将简化后的内容写入源 HAR 文件"
+                  @click="saveSimplifiedBody('req')"
+                >
+                  <UIcon name="i-heroicons-arrow-down-tray" size="13" />
+                  保存
+                </button>
                 <button
                   class="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[12px]"
                   style="background-color: var(--border)"
-                  @click="copyText(requestBody)"
+                  @click="copyText(requestDisplayText)"
                 >
                   <UIcon v-if="copied" name="i-heroicons-check" size="13" style="color:#10b981" />
                   <UIcon v-else name="i-heroicons-clipboard-document" size="13" />
@@ -1238,24 +1693,44 @@ type HarRequest_postData = { mimeType?: string; text?: string }
                 </button>
               </div>
               <div class="mb-1.5 shrink-0 text-[11px]" style="color:var(--text-secondary)">
-                <span v-if="requestBodyIsJson">JSON · </span><span>{{ selectedEntry!.request.postData?.mimeType || '纯文本' }}</span>
+                <span v-if="requestBodyIsJson">JSON · </span><span>{{ selectedEntry!.request.postData?.mimeType || '纯文本' }}</span><span v-if="reqBodySimplified"> · 已简化</span>
               </div>
               <div v-if="requestBodyRoot" class="min-h-0 flex-1 overflow-auto rounded-lg p-2 select-text" :style="{ backgroundColor: 'var(--bg-input)' }">
                 <JsonTreeNodeComp :node="requestBodyRoot" />
               </div>
               <div v-else-if="requestBody" class="min-h-0 flex-1 overflow-auto rounded-lg p-3 select-text" :style="{ backgroundColor: 'var(--bg-input)' }">
-                <pre class="code-block">{{ requestBody }}</pre>
+                <pre class="code-block">{{ requestDisplayText }}</pre>
               </div>
               <div v-else class="flex min-h-0 flex-1 items-center justify-center opacity-50">无请求体</div>
             </div>
 
             <!-- 响应体 -->
             <div v-else-if="currentTab === 'responsebody'" class="relative flex h-full min-h-0 flex-col">
-              <div class="absolute right-0 top-0 z-10">
+              <div class="absolute right-0 top-0 z-10 flex items-center gap-1.5">
+                <button
+                  v-if="responseBody.text"
+                  class="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[12px]"
+                  :style="respBodySimplified ? 'background-color:#06b6d4;color:#fff' : 'background-color: var(--border)'"
+                  :title="respBodySimplified ? '还原为原始 JSON' : '去除数组中键名相同的重复对象'"
+                  @click="toggleSimplify('resp')"
+                >
+                  <UIcon :name="respBodySimplified ? 'i-heroicons-arrow-uturn-left' : 'i-heroicons-funnel'" size="13" />
+                  {{ respBodySimplified ? '还原' : '简化' }}
+                </button>
+                <button
+                  v-if="respBodySimplified"
+                  class="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[12px]"
+                  style="background-color:#10b981;color:#fff"
+                  title="将简化后的内容写入源 HAR 文件"
+                  @click="saveSimplifiedBody('resp')"
+                >
+                  <UIcon name="i-heroicons-arrow-down-tray" size="13" />
+                  保存
+                </button>
                 <button
                   class="flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-[12px]"
                   style="background-color: var(--border)"
-                  @click="copyText(responseBody.text)"
+                  @click="copyText(responseDisplayText)"
                 >
                   <UIcon v-if="copied" name="i-heroicons-check" size="13" style="color:#10b981" />
                   <UIcon v-else name="i-heroicons-clipboard-document" size="13" />
@@ -1263,13 +1738,13 @@ type HarRequest_postData = { mimeType?: string; text?: string }
                 </button>
               </div>
               <div class="mb-1.5 shrink-0 text-[11px]" style="color:var(--text-secondary)">
-                {{ responseBody.mime }}<span v-if="responseBodyIsJson"> · JSON</span>
+                {{ responseBody.mime }}<span v-if="responseBodyIsJson"> · JSON</span><span v-if="respBodySimplified"> · 已简化</span>
               </div>
               <div v-if="responseBodyRoot" class="min-h-0 flex-1 overflow-auto rounded-lg p-2 select-text" :style="{ backgroundColor: 'var(--bg-input)' }">
                 <JsonTreeNodeComp :node="responseBodyRoot" />
               </div>
               <div v-else-if="responseBody.text" class="min-h-0 flex-1 overflow-auto rounded-lg p-3 select-text" :style="{ backgroundColor: 'var(--bg-input)' }">
-                <pre class="code-block">{{ responseBody.text }}</pre>
+                <pre class="code-block">{{ responseDisplayText }}</pre>
               </div>
               <div v-else class="flex min-h-0 flex-1 items-center justify-center opacity-50">无响应体</div>
             </div>
@@ -1369,6 +1844,85 @@ type HarRequest_postData = { mimeType?: string; text?: string }
             <UIcon v-if="saving" name="i-heroicons-arrow-path" size="14" class="animate-spin" />
             <UIcon v-else name="i-heroicons-check" size="14" />
             {{ saving ? '保存中…' : '保存到源文件' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 一键简化确认弹窗 -->
+    <div
+      v-if="showOneClickConfirm"
+      class="fixed inset-0 z-[60] flex items-center justify-center"
+      style="background-color: rgba(0, 0, 0, 0.5)"
+      @click.self="!oneClickSaving && (showOneClickConfirm = false)"
+    >
+      <div
+        class="w-[480px] max-w-[90vw] rounded-2xl border p-6 shadow-2xl"
+        :style="{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }"
+      >
+        <div class="mb-4 flex items-center gap-3">
+          <div
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+            style="background-color: #06b6d41f; color: #06b6d4"
+          >
+            <UIcon name="i-heroicons-scissors" size="24" />
+          </div>
+          <div>
+            <h2 class="text-lg font-semibold" :style="{ color: 'var(--text-primary)' }">一键简化</h2>
+            <p class="mt-0.5 text-xs" :style="{ color: 'var(--text-secondary)' }">确认后保存并写入源 HAR 文件</p>
+          </div>
+        </div>
+
+        <div class="mb-4 space-y-2 rounded-lg border p-3 text-[13px]" :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-base)', color: 'var(--text-secondary)' }">
+          <div>
+            删除请求：
+            <b style="color:#ef4444">{{ oneClickPlan?.deleteIdx.size || 0 }}</b> 条
+            <span v-if="oneClickPlan?.deleteByType.filter((t) => t.count > 0).length" class="text-[12px]" style="color:var(--text-muted)">
+              （{{ oneClickPlan.deleteByType.filter((t) => t.count > 0).map((t) => `${t.label} ${t.count}`).join('，') }}）
+            </span>
+          </div>
+          <div>移除 <code>_initiator</code> 字段：<b :style="{ color: 'var(--text-primary)' }">{{ oneClickPlan?.initiatorCount || 0 }}</b> 处</div>
+          <div v-if="oneClickPlan && oneClickPlan.headerRemovedCount > 0">
+            Headers 精简：请求头 <b :style="{ color: 'var(--text-primary)' }">{{ oneClickPlan.commonRequestHeaders.length }}</b> 组 /
+            响应头 <b :style="{ color: 'var(--text-primary)' }">{{ oneClickPlan.commonResponseHeaders.length }}</b> 组（移除
+            {{ oneClickPlan.headerRemovedCount }} 处，仅保留一份）
+          </div>
+          <div>
+            简化响应体：
+            <b :style="{ color: 'var(--text-primary)' }">{{ oneClickPlan?.bodyCount || 0 }}</b> 个
+            <span v-if="oneClickPlan && oneClickPlan.bodyCount > 0" class="text-[12px]" style="color:var(--text-muted)">
+              （{{ fmtBytes(oneClickPlan.bodyBytesBefore) }} → {{ fmtBytes(oneClickPlan.bodyBytesAfter) }}）
+            </span>
+          </div>
+          <div>剩余请求：<b :style="{ color: 'var(--text-primary)' }">{{ oneClickPlan?.remaining || 0 }}</b> 条</div>
+        </div>
+
+        <div
+          class="mb-4 rounded-lg border px-3 py-2 font-mono text-[12px] break-all"
+          :style="{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }"
+        >
+          {{ activeFile?.path }}
+        </div>
+        <p class="mb-5 text-[12px]" style="color: var(--text-muted)">注意：此操作会直接覆盖原文件内容，建议提前备份。</p>
+
+        <div class="flex justify-end gap-2">
+          <button
+            class="h-9 cursor-pointer rounded-lg px-4 text-[13px] transition-colors disabled:opacity-50"
+            :style="{ backgroundColor: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)' }"
+            :disabled="oneClickSaving"
+            @click="showOneClickConfirm = false"
+          >
+            取消
+          </button>
+          <button
+            class="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            :style="{ backgroundColor: '#06b6d4' }"
+            :disabled="oneClickSaving"
+            @click="confirmOneClickSimplify"
+          >
+            <UIcon v-if="oneClickSaving" name="i-heroicons-arrow-path" size="14" class="animate-spin" />
+            <UIcon v-else name="i-heroicons-check" size="14" />
+            {{ oneClickSaving ? '保存中…' : '确认保存并写入' }}
           </button>
         </div>
       </div>

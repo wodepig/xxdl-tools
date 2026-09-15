@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { JsonTreeNode } from '../../../../shared/types/json-formatter'
 
 defineOptions({ name: 'JsonTreeNode' })
 
 const props = defineProps<{ node: JsonTreeNode }>()
 
-const hasChildren = props.node.children !== undefined
-// 展开状态由组件实例本地维护，避免直接修改 prop
+// 响应式跟随 node 变化（树被整体替换时正确重建）
+const hasChildren = computed(() => props.node.children !== undefined)
+// 展开状态由组件实例本地维护，避免直接修改 prop；node 替换时重置为新树的默认值
 const expanded = ref(props.node.expanded)
 
+watch(
+  () => props.node,
+  (n) => {
+    expanded.value = n.expanded
+  }
+)
+
 function toggleNode(): void {
-  if (hasChildren) {
+  if (hasChildren.value) {
     expanded.value = !expanded.value
   }
 }
